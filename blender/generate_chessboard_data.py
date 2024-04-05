@@ -16,8 +16,11 @@ class BlenderChess:
         self.MAX_X = 0.7
         self.MIN_Y = -0.7
         self.MAX_Y = 0.7
-        self.IMG_WIDTH = 1200
-        self.IMG_HEIGHT = 1200
+        self.IMG_WIDTH = 640
+        self.IMG_HEIGHT = 640
+        self.TRAIN_ITER = 9000
+        self.VAL_ITER = 500
+        self.TEST_ITER = 500
 
     def set_material_to_current_object(self, material_name):
         # Get the material
@@ -118,11 +121,11 @@ class BlenderChess:
         # y = row[2] * self.IMG_HEIGHT / (self.MAX_Y - self.MIN_Y) + self.IMG_HEIGHT / 2
         # width = (self.IMG_WIDTH/2) * 2 * self.MODEL_RADIUS / (self.MAX_X-self.MIN_X)
         # height = (self.IMG_HEIGHT * 2.5) * self.MODEL_RADIUS / (self.MAX_Y-self.MIN_Y)
-        x = (row[1] + self.MAX_X) / 4 * self.MAX_X # TODO: fix
-        y = (row[2] + self.MAX_Y) / 4 * self.MAX_Y # TODO: fix
-        width = 2 * self.MODEL_RADIUS              # TODO: fix for training
-        height = 2.2 * self.MODEL_RADIUS           # TODO: fix for training
-        return f"{row[0]} {x} {y} {width} {height}"
+        x = (row[1] + 3.7 * self.MAX_Y) / (7.3 * self.MAX_X)  # TODO: fix
+        y = (row[2] +  3.5 * self.MAX_Y) / (6.8 * self.MAX_Y)  # TODO: fix
+        width = self.MODEL_RADIUS / (4.3 * self.MAX_X)           # TODO: fix for training
+        height = self.MODEL_RADIUS / (6 * self.MAX_Y)           # TODO: fix for training
+        return f"{row[0]} {y} {x} {height} {width}"
 
     def save_label(self, path, data):
         with open(path, "w") as f:
@@ -147,5 +150,6 @@ class BlenderChess:
 
 
 blender_chess = BlenderChess()
-blender_chess.generate_data("train", 10)
-blender_chess.generate_data("val", 10)
+blender_chess.generate_data("train", blender_chess.TRAIN_ITER)
+blender_chess.generate_data("val", blender_chess.VAL_ITER)
+blender_chess.generate_data("test", blender_chess.TEST_ITER)
