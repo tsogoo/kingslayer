@@ -182,7 +182,7 @@ class BlenderChess:
             for row in data:
                 f.write(f"{self.calculate_label(row)}\n")
 
-    def generate_data(self, mode, iter):
+    def generate_data(self, mode, iter, start_index = 0):
         # make dir if not exists named mode
         data_dir = os.path.join(self.blender_dir, "..", "datasets")
         if not os.path.exists(os.path.join(data_dir, mode)):
@@ -190,7 +190,7 @@ class BlenderChess:
             os.makedirs(os.path.join(data_dir, mode, "images"))
             os.makedirs(os.path.join(data_dir, mode, "labels"))
 
-        for i in range(0, iter):
+        for i in range(start_index, start_index + iter):
             data = self.draw_chessboard()
             self.save_render(os.path.join(data_dir,mode, "images", str(i).zfill(4)))
             self.save_label(os.path.join(data_dir,mode, "labels", f"{str(i).zfill(4)}.txt"), data)
@@ -199,6 +199,6 @@ class BlenderChess:
 
 
 blender_chess = BlenderChess()
-blender_chess.generate_data("train", blender_chess.TRAIN_ITER)
-blender_chess.generate_data("val", blender_chess.VAL_ITER)
-blender_chess.generate_data("test", blender_chess.TEST_ITER)
+blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 0)
+blender_chess.generate_data("val", blender_chess.VAL_ITER, 0)
+blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
