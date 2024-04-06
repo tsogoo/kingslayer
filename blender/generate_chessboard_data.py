@@ -1,6 +1,8 @@
 import random
 import bpy
 import os
+import numpy as np
+
 
 class BlenderChess:
     
@@ -11,16 +13,22 @@ class BlenderChess:
         self.BLACK = 0
         self.WHITE = 1
         self.MODEL_RADIUS = 0.15
+        self.MIN_MODELS = 1
         self.MAX_MODELS = 36
-        self.MIN_X = -0.7
-        self.MAX_X = 0.7
-        self.MIN_Y = -0.7
-        self.MAX_Y = 0.7
+        self.MIN_X = -1
+        self.MAX_X = 1
+        self.MIN_Y = -1
+        self.MAX_Y = 1
+        self.RENDER_WIDTH = 1920
+        self.RENDER_HEIGHT = 1920
+        self.CROP_WIDTH = 900
+        self.CROP_HEIGHT= 900
         self.IMG_WIDTH = 640
         self.IMG_HEIGHT = 640
-        self.TRAIN_ITER = 9000
-        self.VAL_ITER = 500
-        self.TEST_ITER = 500
+        self.TRAIN_ITER = 200
+        self.VAL_ITER = 20
+        self.TEST_ITER = 10
+
 
     def set_material_to_current_object(self, material_name):
         # Get the material
@@ -35,7 +43,7 @@ class BlenderChess:
         bpy.context.object.data.materials.append(material)
         
 
-    def copy_model_by_name(self, model_index, color, collection_name, x_pos, y_pos):
+    def copy_model_by_name(self, model_index, color, collection_name, y_pos, x_pos):
         # Duplicate the object by name
         bpy.ops.object.select_all(action='DESELECT')
         bpy.data.objects[self.models[model_index]].select_set(True)
@@ -77,8 +85,8 @@ class BlenderChess:
 
     def save_render(self, filename):
         # Set the render resolution (optional)
-        bpy.context.scene.render.resolution_x = self.IMG_WIDTH
-        bpy.context.scene.render.resolution_y = self.IMG_HEIGHT
+        bpy.context.scene.render.resolution_x = self.RENDER_WIDTH
+        bpy.context.scene.render.resolution_y = self.RENDER_HEIGHT
 
         # Set the output file format and path
         output_filename = f"{filename}.png" 
@@ -89,6 +97,14 @@ class BlenderChess:
         bpy.ops.render.render(write_still=True)
 
         print("Image rendered and saved to:", output_filename)
+
+     
+        image = bpy.data.images.load(output_filename)
+      
+
+        image.scale(self.IMG_WIDTH, self.IMG_HEIGHT)
+
+        image.save_render(output_filename)
 
 
     def get_random_not_collided_position(self, data, radius):
@@ -105,32 +121,66 @@ class BlenderChess:
 
    
     def draw_chessboard(self):
-        total_models = random.randint(1, self.MAX_MODELS)
+        total_models = random.randint(self.MIN_MODELS, self.MAX_MODELS)
         data = []
         for i in range(total_models):
             model_index = random.randint(0, len(self.models)-1)
             side = random.choice([self.BLACK, self.WHITE])
             x_pos, y_pos = self.get_random_not_collided_position(data, self.MODEL_RADIUS)
             self.copy_model_by_name(model_index, side, "models_temp", x_pos, y_pos)
-            data.append([f"{model_index + side * len(self.models)}", x_pos, y_pos])
+            data.append([f"{model_index + side * len(self.models)}", side, x_pos, y_pos])
+
+        # self.copy_model_by_name(0, 0, "models_temp", self.MAX_X, -self.MAX_Y)
+        # data.append([0,0, self.MAX_X, -self.MAX_Y])
+        # self.copy_model_by_name(0, 0, "models_temp", -self.MAX_X, -self.MAX_Y)
+        # data.append([0,0, -self.MAX_X, -self.MAX_Y])
+        # self.copy_model_by_name(0, 0, "models_temp", self.MAX_X, -self.MAX_Y/2)
+        # data.append([0,0, self.MAX_X, -self.MAX_Y/2])
+        # self.copy_model_by_name(0, 0, "models_temp", -self.MAX_X, -self.MAX_Y/2)
+        # data.append([0,0, -self.MAX_X, -self.MAX_Y/2])
+        # self.copy_model_by_name(0, 0, "models_temp", self.MAX_X, 0)
+        # data.append([0,0, self.MAX_X, 0])
+        # self.copy_model_by_name(0, 0, "models_temp", -self.MAX_X, 0)
+        # data.append([0,0, -self.MAX_X, 0])
+        # self.copy_model_by_name(0, 0, "models_temp", self.MAX_X, self.MAX_Y)
+        # data.append([0,0, self.MAX_X, self.MAX_Y])
+        # self.copy_model_by_name(0, 0, "models_temp", -self.MAX_X, self.MAX_Y)
+        # data.append([0,0, -self.MAX_X, self.MAX_Y])
+        # self.copy_model_by_name(0, 0, "models_temp", self.MAX_X, self.MAX_Y/2)
+        # data.append([0,0, self.MAX_X, self.MAX_Y/2])
+        # self.copy_model_by_name(0, 0, "models_temp", -self.MAX_X, self.MAX_Y/2)
+        # data.append([0,0, -self.MAX_X, self.MAX_Y/2])
+        # self.copy_model_by_name(0, 0, "models_temp", 0, -self.MAX_Y)
+        # data.append([0,0, 0, -self.MAX_Y])
+        # self.copy_model_by_name(0, 0, "models_temp", 0, self.MAX_Y)
+        # data.append([0,0, 0, self.MAX_Y])
         return  data
 
 
     def calculate_label(self, row):
-        # x = row[1] * self.IMG_WIDTH / (self.MAX_X - self.MIN_X) + self.IMG_WIDTH / 2
-        # y = row[2] * self.IMG_HEIGHT / (self.MAX_Y - self.MIN_Y) + self.IMG_HEIGHT / 2
-        # width = (self.IMG_WIDTH/2) * 2 * self.MODEL_RADIUS / (self.MAX_X-self.MIN_X)
-        # height = (self.IMG_HEIGHT * 2.5) * self.MODEL_RADIUS / (self.MAX_Y-self.MIN_Y)
-        x = (row[1] + 3.7 * self.MAX_Y) / (7.3 * self.MAX_X)  # TODO: fix
-        y = (row[2] +  3.5 * self.MAX_Y) / (6.8 * self.MAX_Y)  # TODO: fix
-        width = self.MODEL_RADIUS / (4.3 * self.MAX_X)           # TODO: fix for training
-        height = self.MODEL_RADIUS / (6 * self.MAX_Y)           # TODO: fix for training
-        return f"{row[0]} {y} {x} {height} {width}"
+       
+        scale=1
+        if row[0]!=0 and row[0]!=6: # not pawn
+            scale=1.3
+        
+        trapets_ind_x = 1 + (row[3] / 8.7)
+        
+        trapets_ind_y = 1
+
+        y = (row[3] * trapets_ind_x) / (2.6 * self.MAX_Y) + 0.47 * self.MAX_Y 
+        print(row[3], y)
+        x = (row[2] * trapets_ind_x) / (2.4 * self.MAX_X)  + 0.4799 * self.MAX_X
+        print(row[2], x)
+        height = scale * self.MODEL_RADIUS / (1.7 * self.MAX_Y)           
+        width = self.MODEL_RADIUS / (2.4 * self.MAX_X)           
+        if x < 0 or x > 1 or y < 0 or y > 1:
+            print("Invalid label", row, x, y, width, height)
+            exit()
+        return f"{row[0]} {x} {y} {width} {height}"
 
     def save_label(self, path, data):
         with open(path, "w") as f:
             for row in data:
-                
                 f.write(f"{self.calculate_label(row)}\n")
 
     def generate_data(self, mode, iter):
