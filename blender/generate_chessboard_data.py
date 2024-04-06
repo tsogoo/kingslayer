@@ -1,7 +1,6 @@
 import random
 import bpy
 import os
-import numpy as np
 
 
 class BlenderChess:
@@ -25,7 +24,7 @@ class BlenderChess:
         self.CROP_HEIGHT= 900
         self.IMG_WIDTH = 640
         self.IMG_HEIGHT = 640
-        self.TRAIN_ITER = 200
+        self.TRAIN_ITER = 400
         self.VAL_ITER = 20
         self.TEST_ITER = 10
 
@@ -113,7 +112,7 @@ class BlenderChess:
             y_pos = random.uniform(self.MIN_Y, self.MAX_Y)
             collided = False
             for d in data:
-                if (d[1] - x_pos)**2 + (d[2] - y_pos)**2 < radius**2:
+                if (d[2] - x_pos)**2 + (d[3] - y_pos)**2 < radius**2:
                     collided = True
                     break
             if not collided:
@@ -126,7 +125,7 @@ class BlenderChess:
         for i in range(total_models):
             model_index = random.randint(0, len(self.models)-1)
             side = random.choice([self.BLACK, self.WHITE])
-            x_pos, y_pos = self.get_random_not_collided_position(data, self.MODEL_RADIUS)
+            x_pos, y_pos = self.get_random_not_collided_position(data, 1.5 * self.MODEL_RADIUS)
             self.copy_model_by_name(model_index, side, "models_temp", x_pos, y_pos)
             data.append([f"{model_index + side * len(self.models)}", side, x_pos, y_pos])
 
@@ -163,16 +162,16 @@ class BlenderChess:
         if row[0]!=0 and row[0]!=6: # not pawn
             scale=1.3
         
-        trapets_ind_x = 1 + (row[3] / 8.7)
+        trapets_ind_x = 1 + (row[3] / 8.6)
         
         trapets_ind_y = 1
 
-        y = (row[3] * trapets_ind_x) / (2.6 * self.MAX_Y) + 0.47 * self.MAX_Y 
+        y = (row[3] * trapets_ind_x) / (2.6 * self.MAX_Y) + 0.465 * self.MAX_Y 
         print(row[3], y)
-        x = (row[2] * trapets_ind_x) / (2.4 * self.MAX_X)  + 0.4799 * self.MAX_X
+        x = (row[2] * trapets_ind_x) / (2.4 * self.MAX_X)  + 0.490 * self.MAX_X
         print(row[2], x)
-        height = scale * self.MODEL_RADIUS / (1.7 * self.MAX_Y)           
-        width = self.MODEL_RADIUS / (2.4 * self.MAX_X)           
+        height = scale * self.MODEL_RADIUS  / (1.7 * self.MAX_Y * trapets_ind_x)           
+        width = scale * self.MODEL_RADIUS * trapets_ind_x / (2.4 * self.MAX_X) + abs(row[2])/50
         if x < 0 or x > 1 or y < 0 or y > 1:
             print("Invalid label", row, x, y, width, height)
             exit()
