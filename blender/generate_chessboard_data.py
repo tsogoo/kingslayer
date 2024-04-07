@@ -13,7 +13,7 @@ class BlenderChess:
         self.WHITE = 1
         self.MODEL_RADIUS = 0.15
         self.MIN_MODELS = 1
-        self.MAX_MODELS = 36
+        self.MAX_MODELS = 60
         self.MIN_X = -1
         self.MAX_X = 1
         self.MIN_Y = -1
@@ -28,6 +28,19 @@ class BlenderChess:
         self.VAL_ITER = 20
         self.TEST_ITER = 10
 
+        # world = bpy.data.worlds['World']
+        # world.use_nodes = True
+        bpy.data.objects['BgPlane'].select_set(True)
+        bpy.context.view_layer.objects.active = bpy.data.objects['BgPlane']
+        bgplane = bpy.context.active_object
+        material = bpy.data.objects['BgPlane'].material_slots[0].material
+        # bgplane.use_nodes = True
+        self.bg_node = material.node_tree.nodes['Image Texture']
+
+    def set_random_background(self):
+        bg_imgs = os.listdir(os.path.join(self.blender_dir,"..", "backgrounds"))
+        bg_img = random.choice(bg_imgs)
+        self.bg_node.image = bpy.data.images.load(os.path.join(self.blender_dir,"..", "backgrounds", bg_img))
 
     def set_material_to_current_object(self, material_name):
         # Get the material
@@ -83,6 +96,7 @@ class BlenderChess:
                 bpy.data.objects.remove(obj, do_unlink=True)
 
     def save_render(self, filename):
+        self.set_random_background()
         # Set the render resolution (optional)
         bpy.context.scene.render.resolution_x = self.RENDER_WIDTH
         bpy.context.scene.render.resolution_y = self.RENDER_HEIGHT
@@ -195,7 +209,6 @@ class BlenderChess:
             self.save_render(os.path.join(data_dir,mode, "images", str(i).zfill(4)))
             self.save_label(os.path.join(data_dir,mode, "labels", f"{str(i).zfill(4)}.txt"), data)
             self.delete_objects_in_collection()
-
 
 
 blender_chess = BlenderChess()

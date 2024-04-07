@@ -10,4 +10,4 @@ args = parser.parse_args()
 
 
 model = YOLO(args.weight)
-model.predict(args.image, save=True, imgsz=320, conf=0.5)
+model.predict(args.image, save=True, imgsz=320, conf=0.2)
