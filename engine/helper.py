@@ -14,7 +14,7 @@ import subprocess
 #     ["P", "P", "P", "P", "P", "P", "P", "P"],
 #     ["R", "N", "B", "Q", "K", "B", "N", "R"]
 # ]
-def matrix_to_fen(board):
+def matrix_to_fen(board, turn=chess.WHITE):
     """
     Convert an 8x8 matrix representation of a chess position to FEN notation.
 
@@ -46,10 +46,29 @@ def matrix_to_fen(board):
     # Remove the last '/'
     fen = fen[:-1]
 
+    if turn is not None:
+        if turn == chess.WHITE:
+            fen = fen + " w"
+        else:
+            fen = fen + " b"
+    else:
+        fen = fen + " w"
+
     return fen
 
+
+# square to x,y : 52/e7/ -> 6,4
 def square_to_position(square):
     return int((square + 1) / 8), (square + 1) % 8 - 1
+
+def get_move(player_move):
+    move = None
+    try:
+        move = chess.Move.from_uci(player_move)
+    except Exception:
+        print("Invalid move, try again.")
+    return move
+
 
 class ChessEngineHelper:
 
@@ -82,34 +101,33 @@ class ChessEngineHelper:
         print("Engine stopped")
 
     # initialize board
-    def initialize_board(self, conf):
+    def initialize_board(self, conf, turn=None):
         if conf is not None:
-            self.board = chess.Board(matrix_to_fen(conf))
+            self.board = chess.Board(matrix_to_fen(conf, turn))
         else:
             self.board = chess.Board()
         print(self.board)
 
-    # get best possible move
+    # get best possible move: -> e7e5
     def get_best_move(self):
         result = self.engine.play(self.board, chess.engine.Limit(time=0.1))
         return str(result.move)
 
-    # whether move is valid: e7e5
+    # whether move is valid: e7e5 -> boolean
     def is_valid_move(self, player_move):
-        try:
-            move = chess.Move.from_uci(player_move)
+        move = get_move(player_move)
+        # print("check_move:", move)
+        if move is not None:
             if move in self.board.legal_moves:
                 return True
             else:
                 print("Illegal move, try again.")
-        except Exception:
-            print("Invalid move, try again.")
         return False
 
     # move: e7e5
     def move(self, player_move):
         if self.is_valid_move(player_move):
-            self.board.push(chess.Move.from_uci(player_move))
+            self.board.push(get_move(player_move))
             print(self.board)
 
     # check game is over or stalemate
@@ -117,8 +135,38 @@ class ChessEngineHelper:
         return self.board.is_game_over() or self.board.is_stalemate()
     
 
-    # get position: [{x,y}, {x,y}]
+    # get position: e7e5 -> [{x,y}, {x,y}] = [from, to]
     def get_position(self, player_move):
-        move = chess.Move.from_uci(player_move)
+        move = get_move(player_move)
         return [square_to_position(move.from_square), square_to_position(move.to_square)]
 
+
+    # check square occupied by opponent figure: e7e5
+    def is_occupied(self, player_move):
+        move = get_move(player_move)
+        return self.board.piece_at(move.to_square) is not None
+    
+    # detect moved figure, then move
+    def detect_move(self, conf):
+        prev_board = self.board
+        
+        turn = "w"
+        if prev_board.turn == chess.BLACK:
+            turn = "b"
+        
+        # print("turn:", turn)
+        new_board = chess.Board(matrix_to_fen(conf, turn))
+
+        to_square = None
+        from_square = None
+        for square in chess.SQUARES:
+            if prev_board.piece_at(square) != new_board.piece_at(square):
+                if new_board.piece_at(square) is not None:
+                    to_square = square
+            if prev_board.piece_at(square) is not None and new_board.piece_at(square) is None:
+                from_square = square
+        move = chess.Move(from_square, to_square)
+        # print(move)
+        
+        self.move(str(move))
+        print(self.board)
