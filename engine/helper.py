@@ -3,60 +3,6 @@ import chess.engine
 import os
 import subprocess
 
-# Example 8x8 matrix representing a chess position
-# chess_board = [
-#     ["r", "n", "b", "q", "k", "b", "n", "r"],
-#     ["p", "p", "p", "p", "p", "p", "p", "p"],
-#     [" ", " ", " ", " ", " ", " ", " ", " "],
-#     [" ", " ", " ", " ", " ", " ", " ", " "],
-#     [" ", " ", " ", " ", " ", " ", " ", " "],
-#     [" ", " ", " ", " ", " ", " ", " ", " "],
-#     ["P", "P", "P", "P", "P", "P", "P", "P"],
-#     ["R", "N", "B", "Q", "K", "B", "N", "R"]
-# ]
-def matrix_to_fen(board, turn=chess.WHITE):
-    """
-    Convert an 8x8 matrix representation of a chess position to FEN notation.
-
-    Parameters:
-        board (list of lists): 8x8 matrix representing the chess position.
-                                Each element should be a string representing
-                                a piece on the board or an empty space.
-
-    Returns:
-        str: FEN notation of the board position.
-    """
-    fen = ""
-    empty_counter = 0
-
-    for row in board:
-        for square in row:
-            if square == " ":
-                empty_counter += 1
-            else:
-                if empty_counter > 0:
-                    fen += str(empty_counter)
-                    empty_counter = 0
-                fen += square
-        if empty_counter > 0:
-            fen += str(empty_counter)
-            empty_counter = 0
-        fen += "/"
-
-    # Remove the last '/'
-    fen = fen[:-1]
-
-    if turn is not None:
-        if turn == chess.WHITE:
-            fen = fen + " w"
-        else:
-            fen = fen + " b"
-    else:
-        fen = fen + " w"
-
-    return fen
-
-
 # square to x,y : 52/e7/ -> 6,4
 def square_to_position(square):
     return int((square + 1) / 8), (square + 1) % 8 - 1
@@ -101,9 +47,9 @@ class ChessEngineHelper:
         print("Engine stopped")
 
     # initialize board
-    def initialize_board(self, conf, turn=None):
-        if conf is not None:
-            self.board = chess.Board(matrix_to_fen(conf, turn))
+    def initialize_board(self, fen=None):
+        if fen is not None:
+            self.board = chess.Board(fen)
         else:
             self.board = chess.Board()
         print(self.board)
@@ -147,15 +93,9 @@ class ChessEngineHelper:
         return self.board.piece_at(move.to_square) is not None
     
     # detect moved figure, then move
-    def detect_move(self, conf):
+    def detect_move(self, fen):
         prev_board = self.board
-        
-        turn = "w"
-        if prev_board.turn == chess.BLACK:
-            turn = "b"
-        
-        # print("turn:", turn)
-        new_board = chess.Board(matrix_to_fen(conf, turn))
+        new_board = chess.Board(fen)
 
         to_square = None
         from_square = None
@@ -169,4 +109,3 @@ class ChessEngineHelper:
         # print(move)
         
         self.move(str(move))
-        print(self.board)
