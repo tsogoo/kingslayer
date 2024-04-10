@@ -1,1 +1,3 @@
 ultralytics
+python-chess
+opencv-python
