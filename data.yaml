@@ -5,8 +5,9 @@ test: ./datasets/test
 nc: 12 # Number of classes (["Pawn", "Bishop", "King", "Queen", "Rook", "Knight"])x black or white
 names: ["Pw0", "Bs0", "Kg0", "Qn0", "Rk0", "Kt0", "Pw1", "Bs1", "Kg1", "Qn1", "Rk1", "Kt1"]
 
-batch_size: 16
-epochs: 50
+batch_size: 32
+epochs: 1000
 fliplr: 0
-
+# grayscale_conversion: True
+# data_augmentation: False
 img_size: 640
