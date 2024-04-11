@@ -17,6 +17,29 @@ def get_figures(model, image_path):
     # print("detected_objects:", len(objects))
     return objects
 
+def capture_image(image_path):
+    # Initialize the camera
+    camera = cv2.VideoCapture("/dev/video2")  # 0 represents the default camera, change it if you have multiple cameras
+
+    # Check if the camera is opened successfully
+    if not camera.isOpened():
+        print("Error: Could not open camera.")
+        return
+
+    # Capture a frame
+    ret, frame = camera.read()
+
+    # Check if the frame is captured successfully
+    if not ret:
+        print("Error: Could not capture frame.")
+        return
+
+    # Save the captured frame as an image file
+    cv2.imwrite(image_path, frame)
+
+    # Release the camera
+    camera.release()
+
 # detect board position
 def get_board_position(image_path, figures):
     
@@ -59,8 +82,6 @@ def get_board_position(image_path, figures):
 
     # 2. detect squares
     # https://learnopencv.com/contour-detection-using-opencv-python-c/
-    cv2.imwrite('tmp.jpg', image)
-    image = cv2.imread('tmp.jpg')
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY)
 
@@ -68,10 +89,10 @@ def get_board_position(image_path, figures):
     contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     # draw contours on the original image
-    cv2.drawContours(image=image, contours=contours, contourIdx=-1, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
+    # cv2.drawContours(image=image, contours=contours, contourIdx=-1, color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA)
                     
     # see the results
-    # cv2.imshow('None approximation', image_copy)
+    # cv2.imshow('None approximation', image)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
@@ -89,6 +110,8 @@ def get_board_position(image_path, figures):
     # TODO order squares
     c = list(map(lambda x: x[2], sorted(c, key=lambda x: [x[1], x[0]], reverse=False)))
     
+    cv2.drawContours(image, [c[0], c[-1]], -1, (0, 255, 0), 2)
+
     # Draw and index squares
     for i, square in enumerate(c):
         cv2.drawContours(image, [square], -1, (0, 255, 0), 1)
@@ -97,9 +120,9 @@ def get_board_position(image_path, figures):
 
 
     # Display the result
-    # cv2.imshow('Squares', image)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+    cv2.imshow('Squares', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     
     # 3. find positions of figures
     result = []
@@ -115,7 +138,28 @@ def get_board_position(image_path, figures):
         
         result.append(name)
 
+    # 4. rotate image
+
+    # # Get the minimum area rectangle bounding the contour
+    # rect = cv2.minAreaRect(c[0])
+    # box = cv2.boxPoints(rect)
+    # box = np.int0(box)
+
+    # # Calculate the angle of rotation
+    # angle = rect[2]
+
+    # # Rotate the image by the calculated angleqww
+    # rows, cols = image.shape[:2]
+    # M = cv2.getRotationMatrix2D((cols/2, rows/2), angle, 1)
+    # rotated_image = cv2.warpAffine(image, M, (cols, rows))
+
+    # # Display the result
+    # cv2.imshow('Squares', rotated_image)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
     return result
+
 
 class Detector:
 
@@ -126,6 +170,8 @@ class Detector:
     def detect(self, image_path=''):
         image_path = 'datasets/test/images/0000.png'        
         figures = get_figures(self.model, image_path)
+        # figures = []
+        # capture_image(image_path)
         positions = get_board_position(image_path, figures)
         matrix = to_matrix(positions)
         fen = matrix_to_fen(matrix)

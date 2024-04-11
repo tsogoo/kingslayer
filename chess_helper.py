@@ -38,10 +38,10 @@ from engine.detect import Detector
 # ]
 # helper.detect_move(conf=conf)
 
-helper = ChessEngineHelper()
+# helper = ChessEngineHelper()
 d = Detector()
 fen = d.detect()
-helper.initialize_board(fen)
-helper.destroy()
-
+# helper.initialize_board(fen)
 # helper.destroy()
+
+# helper.destroy()    
