@@ -2,6 +2,96 @@ import random
 import bpy
 import os
 
+def clamp(x, minimum, maximum):
+    return max(minimum, min(x, maximum))
+
+def camera_view_bounds_2d(scene, cam_ob, me_ob):
+    
+    # https://blender.stackexchange.com/questions/7198/save-the-2d-bounding-box-of-an-object-in-rendered-image-to-a-text-file
+    
+    """
+    Returns camera space bounding box of mesh object.
+
+    Negative 'z' value means the point is behind the camera.
+
+    Takes shift-x/y, lens angle and sensor size into account
+    as well as perspective/ortho projections.
+
+    :arg scene: Scene to use for frame size.
+    :type scene: :class:`bpy.types.Scene`
+    :arg obj: Camera object.
+    :type obj: :class:`bpy.types.Object`
+    :arg me: Untransformed Mesh.
+    :type me: :class:`bpy.types.Mesh´
+    :return: a Box object (call its to_tuple() method to get x, y, width and height)
+    :rtype: :class:`Box`
+    """
+
+    mat = cam_ob.matrix_world.normalized().inverted()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    mesh_eval = me_ob.evaluated_get(depsgraph)
+    me = mesh_eval.to_mesh()
+    me.transform(me_ob.matrix_world)
+    me.transform(mat)
+
+    
+    camera = cam_ob.data
+    frame = [-v for v in camera.view_frame(scene=scene)[:3]]
+    camera_persp = camera.type != 'ORTHO'
+
+    
+    lx = []
+    ly = []
+
+    
+    for v in me.vertices:
+        co_local = v.co
+        z = -co_local.z
+
+        if camera_persp:
+            if z == 0.0:
+                lx.append(0.5)
+                ly.append(0.5)
+            # Does it make any sense to drop these?
+            # if z <= 0.0:
+            #    continue
+            else:
+                frame = [(v / (v.z / z)) for v in frame]
+
+        min_x, max_x = frame[1].x, frame[2].x
+        min_y, max_y = frame[0].y, frame[1].y
+
+        x = (co_local.x - min_x) / (max_x - min_x)
+        y = (co_local.y - min_y) / (max_y - min_y)
+
+        lx.append(x)
+        ly.append(y)
+
+    min_x = clamp(min(lx), 0.0, 1.0)
+    max_x = clamp(max(lx), 0.0, 1.0)
+    min_y = clamp(min(ly), 0.0, 1.0)
+    max_y = clamp(max(ly), 0.0, 1.0)
+
+    
+    mesh_eval.to_mesh_clear()
+
+    
+    r = scene.render
+    fac = r.resolution_percentage * 0.01
+    dim_x = r.resolution_x * fac
+    dim_y = r.resolution_y * fac
+
+    # Sanity check
+    if round((max_x - min_x) * dim_x) == 0 or round((max_y - min_y) * dim_y) == 0:
+        return (0, 0, 0, 0)
+
+    return (
+        round(min_x * dim_x ) / r.resolution_x,     # X
+        round(dim_y - max_y * dim_y) / r.resolution_y,    # Y
+        round((max_x - min_x) * dim_x) / r.resolution_x,  # Width
+        round((max_y - min_y) * dim_y) / r.resolution_y  # Height
+    )
+    
 
 class BlenderChess:
     
@@ -100,6 +190,8 @@ class BlenderChess:
         duplicated_obj.location.y = y_pos
         duplicated_obj.rotation_euler.z = random.uniform(0, 360)
         
+        return duplicated_obj
+        
 
     def delete_objects_in_collection(self, collection_name='models_temp'):
         # Check if the collection exists
@@ -159,8 +251,8 @@ class BlenderChess:
             bpy.data.objects["Board"].hide_render = random.choice([True, False])
 
             x_pos, y_pos = self.get_random_not_collided_position(data, 1.5 * self.MODEL_RADIUS)
-            self.copy_model_by_name(model_index, side, "models_temp", x_pos, y_pos)
-            data.append([f"{model_index + side * len(self.models)}", side, x_pos, y_pos])
+            model = self.copy_model_by_name(model_index, side, "models_temp", x_pos, y_pos)
+            data.append([f"{model_index + side * len(self.models)}", side, x_pos, y_pos, model])
 
         # self.copy_model_by_name(2, 0, "models_temp", self.MAX_X, -self.MAX_Y)
         # data.append([2,0, self.MAX_X, -self.MAX_Y])
@@ -220,10 +312,16 @@ class BlenderChess:
             exit()
         return f"{row[0]} {x} {y} {width} {height}"
 
+    def calculate_label_by_blender(self, row):    
+        x, y, width, height = camera_view_bounds_2d(bpy.context.scene, bpy.context.scene.camera, row[4])
+        print(x, y, width, height)       
+        return f"{row[0]} {x} {y} {width} {height}"
+
     def save_label(self, path, data):
         with open(path, "w") as f:
             for row in data:
-                f.write(f"{self.calculate_label(row)}\n")
+                # f.write(f"{self.calculate_label(row)}\n")
+                f.write(f"{self.calculate_label_by_blender(row)}\n")
 
     def generate_data(self, mode, iter, start_index = 0):
         # make dir if not exists named mode
