@@ -91,7 +91,29 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
         round((max_x - min_x) * dim_x) / r.resolution_x,  # Width
         round((max_y - min_y) * dim_y) / r.resolution_y  # Height
     )
+
+def look_at(target):
+    camera = bpy.context.scene.camera
     
+    target_location = target.location
+    dimensions = target.dimensions
+    half_width = dimensions[0]/2
+    half_height = dimensions[1]/2
+
+    # set camera location
+    camera.location.x = random.uniform(target_location.x - half_width, target_location.x + half_width)
+    camera.location.y = random.uniform(target_location.y - half_height, target_location.y + half_height)
+    camera.location.z = 4.2 # adjust camera height, or random height
+    
+    # Calculate the direction vector from camera to target
+    direction = target.location - camera.location
+
+    # Calculate the rotation quaternion to point the camera at the target
+    rotation_quaternion = direction.to_track_quat('-Z', 'Y')
+
+    # Set the rotation of the camera
+    camera.rotation_euler = rotation_quaternion.to_euler()
+
 
 class BlenderChess:
     
@@ -278,6 +300,10 @@ class BlenderChess:
         # data.append([2,0, 0, -self.MAX_Y])
         # self.copy_model_by_name(2, 0, "models_temp", 0, self.MAX_Y)
         # data.append([2,0, 0, self.MAX_Y])
+            
+        # look at board
+        # look_at(target = bpy.data.objects["Board"])
+        
         return  data
 
 
