@@ -65,7 +65,7 @@ inverse_stepper_shoulder_angle_calc(struct stepper_kinematics *sk, struct move *
     double r = get_radius(fs->x, fs->y, fs->l0, c.x, c.y);
     double d = fs->l1+fs->l2*cos_b;
     double angle = atan2(c.z, r) + (d==0 ? M_PI/2 : atan2(fs->l2*sin_b, d));
-    //  stepper reversed
+    //  counter clockwise
     return -angle;
 }
 
@@ -76,6 +76,7 @@ inverse_stepper_arm_angle_calc(struct stepper_kinematics *sk, struct move *m, do
                 sk, struct inverse_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
     double angle = -acos(calc_arm_angle_cos(fs->x, fs->y, fs->l0, fs->l1, fs->l2, c.x, c.y, c.z));
+    //  counter clockwise
     return -angle;
 }
 
