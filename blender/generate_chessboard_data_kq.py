@@ -98,12 +98,12 @@ class BlenderChess:
     def __init__(self):
         blend_file_path = bpy.data.filepath
         self.blender_dir = os.path.dirname(blend_file_path)
-        self.models = ["Pawn", "Bishop", "King", "Queen", "Rook", "Knight"]
+        self.models = ["King", "Queen"] #
         self.BLACK = 0
         self.WHITE = 1
         self.MODEL_RADIUS = 0.15
         self.MIN_MODELS = 1
-        self.MAX_MODELS = 32
+        self.MAX_MODELS = 8
         self.MIN_X = -1
         self.MAX_X = 1
         self.MIN_Y = -1
@@ -114,7 +114,7 @@ class BlenderChess:
         self.CROP_HEIGHT= 640
         self.IMG_WIDTH = 640
         self.IMG_HEIGHT = 640
-        self.TRAIN_ITER = 20000
+        self.TRAIN_ITER = 13000
         self.VAL_ITER = 200
         self.TEST_ITER = 20
 
@@ -210,6 +210,7 @@ class BlenderChess:
         bpy.context.scene.render.resolution_y = self.RENDER_HEIGHT
         bpy.context.scene.render.engine = 'CYCLES'
         bpy.context.scene.cycles.samples = 8
+
         # Set the output file format and path
         output_filename = f"{filename}.png" 
         
@@ -311,18 +312,18 @@ class BlenderChess:
             exit()
         return f"{row[0]} {x} {y} {width} {height}"
 
-    def calculate_label_by_blender(self, model_index, blender_model):    
-        x, y, width, height = camera_view_bounds_2d(bpy.context.scene, bpy.context.scene.camera, blender_model)
+    def calculate_label_by_blender(self, row):    
+        x, y, width, height = camera_view_bounds_2d(bpy.context.scene, bpy.context.scene.camera, row[4])
         if width < 0.05 or height < 0.05:
             return None
-        return f"{model_index} {x+width/2} {y+height/2} {width} {height}"
+        return f"{row[0]} {x+width/2} {y+height/2} {width} {height}"
 
     def save_label(self, path, data):
         with open(path, "w") as f:
             for row in data:
-                label_line = self.calculate_label_by_blender(row[0], row[4])
-                if label_line:
-                    f.write(f"{label_line}\n")
+                # f.write(f"{self.calculate_label(row)}\n")
+                if self.calculate_label_by_blender(row):
+                    f.write(f"{self.calculate_label_by_blender(row)}\n")
 
     def move_camera_and_environment_randomly(self):
         
@@ -341,7 +342,7 @@ class BlenderChess:
 
     def generate_data(self, mode, iter, start_index = 0):
         # make dir if not exists named mode
-        data_dir = os.path.join(self.blender_dir, "..", "datasets")
+        data_dir = os.path.join(self.blender_dir, "..", "datasets_kq")
         if not os.path.exists(os.path.join(data_dir, mode)):
             os.makedirs(os.path.join(data_dir, mode))
             os.makedirs(os.path.join(data_dir, mode, "images"))

@@ -1,0 +1,13 @@
+path: /mnt/d/work/kingslayer/
+train: ./datasets_kq/train
+val: ./datasets_kq/val
+test: ./datasets_kq/test
+nc: 4 # Number of classes (["Pawn", "Bishop", "King", "Queen", "Rook", "Knight"])x black or white
+names: [ "Kg0", "Qn0", "Kg1", "Qn1"]
+
+batch_size: 8
+epochs: 100
+fliplr: 0
+# grayscale_conversion: True
+# data_augmentation: False
+img_size: 640
