@@ -163,3 +163,6 @@ yolov8n.pt
 pt/
 labels/
 datasets/
+datasets_kq/
+datasets_board/
+run/
