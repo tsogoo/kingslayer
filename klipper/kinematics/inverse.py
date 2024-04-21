@@ -17,6 +17,12 @@ class InverseKinematics:
         self.l2 = config.getfloat('l2', above=0.)
         self.angle1 = config.getfloat('angle1')
         self.angle2 = config.getfloat('angle2')
+        
+        # limit
+        # l1 bend limit
+        self.angle1_min = math.degrees(10)
+        # distance limit
+        self.r = self.l0+self.l1*math.cos(self.angle1_min)+self.l2 
 
         # Setup steppers
         self.steppers = []
@@ -36,13 +42,13 @@ class InverseKinematics:
         # inversion of kin_inverse.c
         
         # bed rotation angle
-        bed_angle = stepper_positions[self.steppers['b'].get_name()]
+        bed_angle = stepper_positions['b']
         
         # shoulder rotation angle relative to x,y plane
-        l1_angle = stepper_positions[self.steppers['s'].get_name()]
+        l1_angle = stepper_positions['s']
         
         # arm rotation angle relative to shoulder
-        l2_angle = stepper_positions[self.steppers['a'].get_name()]
+        l2_angle = stepper_positions['a']
         
         # convert to cartesian x, y, z
         l1_angle = math.radians(self.angle1)+l1_angle
@@ -60,8 +66,10 @@ class InverseKinematics:
     def home(self, homing_state):
         pass
     def check_move(self, move):
-        print("check_move", move)
-        pass
+        # check move
+        end_pos = move.end_pos
+        if self.r <= math.sqrt(end_pos[0]**2+end_pos[1]**2+end_pos[2]**2):
+            raise move.move_error("out of bound")
     def get_status(self, eventtime):
         pass
 
