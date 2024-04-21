@@ -160,6 +160,11 @@ cython_debug/
 #.idea/
 
 yolov8n.pt
+yolov8l.pt
+yolov8x.pt
 pt/
 labels/
 datasets/
+datasets_kq/
+datasets_board/
+runs/

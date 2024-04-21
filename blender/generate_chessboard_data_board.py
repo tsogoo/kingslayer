@@ -91,29 +91,7 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
         round((max_x - min_x) * dim_x) / r.resolution_x,  # Width
         round((max_y - min_y) * dim_y) / r.resolution_y  # Height
     )
-
-def look_at(target):
-    camera = bpy.context.scene.camera
     
-    target_location = target.location
-    dimensions = target.dimensions
-    half_width = dimensions[0]/2
-    half_height = dimensions[1]/2
-
-    # set camera location
-    camera.location.x = random.uniform(target_location.x - half_width, target_location.x + half_width)
-    camera.location.y = random.uniform(target_location.y - half_height, target_location.y + half_height)
-    camera.location.z = 4.2 # adjust camera height, or random height
-    
-    # Calculate the direction vector from camera to target
-    direction = target.location - camera.location
-
-    # Calculate the rotation quaternion to point the camera at the target
-    rotation_quaternion = direction.to_track_quat('-Z', 'Y')
-
-    # Set the rotation of the camera
-    camera.rotation_euler = rotation_quaternion.to_euler()
-
 
 class BlenderChess:
     
@@ -136,7 +114,7 @@ class BlenderChess:
         self.CROP_HEIGHT= 640
         self.IMG_WIDTH = 640
         self.IMG_HEIGHT = 640
-        self.TRAIN_ITER = 20000
+        self.TRAIN_ITER = 13000
         self.VAL_ITER = 200
         self.TEST_ITER = 20
 
@@ -144,6 +122,7 @@ class BlenderChess:
         # world.use_nodes = True
         bpy.data.objects['BgPlane'].select_set(True)
         bpy.context.view_layer.objects.active = bpy.data.objects['BgPlane']
+        self.board_model = bpy.data.objects["Board"]
         material = bpy.data.objects['BgPlane'].material_slots[0].material
         # bgplane.use_nodes = True
         self.bg_node = material.node_tree.nodes['Image Texture']
@@ -246,7 +225,7 @@ class BlenderChess:
         image = bpy.data.images.load(output_filename)
       
 
-        image.scale(self.IMG_WIDTH, self.IMG_HEIGHT)
+        #image.scale(self.IMG_WIDTH, self.IMG_HEIGHT)
 
         image.save_render(output_filename)
 
@@ -266,43 +245,17 @@ class BlenderChess:
    
     def draw_chessboard(self):
         total_models = random.randint(self.MIN_MODELS, self.MAX_MODELS)
+        self.board_hide = False # random.choice([True, False])
+        self.board_model.hide_render = self.board_hide
+
         data = []
-        bpy.data.objects["Board"].hide_render = random.choice([True, False])
         for i in range(total_models):
             model_index = random.randint(0, len(self.models)-1)
             side = random.choice([self.BLACK, self.WHITE])
+            
             x_pos, y_pos = self.get_random_not_collided_position(data, 1.5 * self.MODEL_RADIUS)
             model = self.copy_model_by_name(model_index, side, "models_temp", x_pos, y_pos)
             data.append([f"{model_index + side * len(self.models)}", side, x_pos, y_pos, model])
-
-        # self.copy_model_by_name(2, 0, "models_temp", self.MAX_X, -self.MAX_Y)
-        # data.append([2,0, self.MAX_X, -self.MAX_Y])
-        # self.copy_model_by_name(2, 0, "models_temp", -self.MAX_X, -self.MAX_Y)
-        # data.append([2,0, -self.MAX_X, -self.MAX_Y])
-        # self.copy_model_by_name(2, 0, "models_temp", self.MAX_X, -self.MAX_Y/2)
-        # data.append([2,0, self.MAX_X, -self.MAX_Y/2])
-        # self.copy_model_by_name(2, 0, "models_temp", -self.MAX_X, -self.MAX_Y/2)
-        # data.append([2,0, -self.MAX_X, -self.MAX_Y/2])
-        # self.copy_model_by_name(2, 0, "models_temp", self.MAX_X, 0)
-        # data.append([2,0, self.MAX_X, 0])
-        # self.copy_model_by_name(2, 0, "models_temp", -self.MAX_X, 0)
-        # data.append([2,0, -self.MAX_X, 0])
-        # self.copy_model_by_name(2, 0, "models_temp", self.MAX_X, self.MAX_Y)
-        # data.append([2,0, self.MAX_X, self.MAX_Y])
-        # self.copy_model_by_name(2, 0, "models_temp", -self.MAX_X, self.MAX_Y)
-        # data.append([2,0, -self.MAX_X, self.MAX_Y])
-        # self.copy_model_by_name(2, 0, "models_temp", self.MAX_X, self.MAX_Y/2)
-        # data.append([2,0, self.MAX_X, self.MAX_Y/2])
-        # self.copy_model_by_name(2, 0, "models_temp", -self.MAX_X, self.MAX_Y/2)
-        # data.append([2,0, -self.MAX_X, self.MAX_Y/2])
-        # self.copy_model_by_name(2, 0, "models_temp", 0, -self.MAX_Y)
-        # data.append([2,0, 0, -self.MAX_Y])
-        # self.copy_model_by_name(2, 0, "models_temp", 0, self.MAX_Y)
-        # data.append([2,0, 0, self.MAX_Y])
-            
-        # look at board
-        # look_at(target = bpy.data.objects["Board"])
-        
         return  data
 
 
@@ -343,12 +296,11 @@ class BlenderChess:
             return None
         return f"{model_index} {x+width/2} {y+height/2} {width} {height}"
 
-    def save_label(self, path, data):
+    def save_label(self, path):
         with open(path, "w") as f:
-            for row in data:
-                label_line = self.calculate_label_by_blender(row[0], row[4])
-                if label_line:
-                    f.write(f"{label_line}\n")
+            label_line = self.calculate_label_by_blender(0, self.board_model)
+            if label_line:
+                f.write(f"{label_line}\n")
 
     def move_camera_and_environment_randomly(self):
         
@@ -359,7 +311,7 @@ class BlenderChess:
 
         bpy.data.objects["Camera"].location.x = random.uniform(1, 2)
         #bpy.data.objects["Camera"].location.y = random.uniform(-1, 1)
-        bpy.data.objects["Camera"].location.z = random.uniform(2.5, 3.5)
+        bpy.data.objects["Camera"].location.z = random.uniform(2.8, 3.5)
         bpy.data.objects["Camera"].rotation_euler.x = random.uniform(0.28, 0.5)
         #bpy.data.objects["Camera"].rotation_euler.y = random.uniform(0, 0.5)
         bpy.data.objects["Camera"].rotation_euler.z = random.uniform(1.3, 1.8)
@@ -367,7 +319,7 @@ class BlenderChess:
 
     def generate_data(self, mode, iter, start_index = 0):
         # make dir if not exists named mode
-        data_dir = os.path.join(self.blender_dir, "..", "datasets")
+        data_dir = os.path.join(self.blender_dir, "..", "datasets_board")
         if not os.path.exists(os.path.join(data_dir, mode)):
             os.makedirs(os.path.join(data_dir, mode))
             os.makedirs(os.path.join(data_dir, mode, "images"))
@@ -377,11 +329,11 @@ class BlenderChess:
             self.move_camera_and_environment_randomly()
             data = self.draw_chessboard()
             self.save_render(os.path.join(data_dir,mode, "images", str(i).zfill(4)))
-            self.save_label(os.path.join(data_dir,mode, "labels", f"{str(i).zfill(4)}.txt"), data)
+            self.save_label(os.path.join(data_dir,mode, "labels", f"{str(i).zfill(4)}.txt"))
             self.delete_objects_in_collection()
 
 
 blender_chess = BlenderChess()
-blender_chess.generate_data("test",blender_chess.TEST_ITER, 0)
-blender_chess.generate_data("val", blender_chess.VAL_ITER, 0)
-blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 0)
+#blender_chess.generate_data("test",blender_chess.TEST_ITER, 0)
+#blender_chess.generate_data("val", blender_chess.VAL_ITER, 0)
+blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 3000)

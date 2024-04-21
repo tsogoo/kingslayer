@@ -91,41 +91,19 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
         round((max_x - min_x) * dim_x) / r.resolution_x,  # Width
         round((max_y - min_y) * dim_y) / r.resolution_y  # Height
     )
-
-def look_at(target):
-    camera = bpy.context.scene.camera
     
-    target_location = target.location
-    dimensions = target.dimensions
-    half_width = dimensions[0]/2
-    half_height = dimensions[1]/2
-
-    # set camera location
-    camera.location.x = random.uniform(target_location.x - half_width, target_location.x + half_width)
-    camera.location.y = random.uniform(target_location.y - half_height, target_location.y + half_height)
-    camera.location.z = 4.2 # adjust camera height, or random height
-    
-    # Calculate the direction vector from camera to target
-    direction = target.location - camera.location
-
-    # Calculate the rotation quaternion to point the camera at the target
-    rotation_quaternion = direction.to_track_quat('-Z', 'Y')
-
-    # Set the rotation of the camera
-    camera.rotation_euler = rotation_quaternion.to_euler()
-
 
 class BlenderChess:
     
     def __init__(self):
         blend_file_path = bpy.data.filepath
         self.blender_dir = os.path.dirname(blend_file_path)
-        self.models = ["Pawn", "Bishop", "King", "Queen", "Rook", "Knight"]
+        self.models = ["King", "Queen"] #
         self.BLACK = 0
         self.WHITE = 1
         self.MODEL_RADIUS = 0.15
         self.MIN_MODELS = 1
-        self.MAX_MODELS = 32
+        self.MAX_MODELS = 8
         self.MIN_X = -1
         self.MAX_X = 1
         self.MIN_Y = -1
@@ -136,7 +114,7 @@ class BlenderChess:
         self.CROP_HEIGHT= 640
         self.IMG_WIDTH = 640
         self.IMG_HEIGHT = 640
-        self.TRAIN_ITER = 20000
+        self.TRAIN_ITER = 13000
         self.VAL_ITER = 200
         self.TEST_ITER = 20
 
@@ -232,6 +210,7 @@ class BlenderChess:
         bpy.context.scene.render.resolution_y = self.RENDER_HEIGHT
         bpy.context.scene.render.engine = 'CYCLES'
         bpy.context.scene.cycles.samples = 8
+
         # Set the output file format and path
         output_filename = f"{filename}.png" 
         
@@ -299,10 +278,6 @@ class BlenderChess:
         # data.append([2,0, 0, -self.MAX_Y])
         # self.copy_model_by_name(2, 0, "models_temp", 0, self.MAX_Y)
         # data.append([2,0, 0, self.MAX_Y])
-            
-        # look at board
-        # look_at(target = bpy.data.objects["Board"])
-        
         return  data
 
 
@@ -337,18 +312,18 @@ class BlenderChess:
             exit()
         return f"{row[0]} {x} {y} {width} {height}"
 
-    def calculate_label_by_blender(self, model_index, blender_model):    
-        x, y, width, height = camera_view_bounds_2d(bpy.context.scene, bpy.context.scene.camera, blender_model)
+    def calculate_label_by_blender(self, row):    
+        x, y, width, height = camera_view_bounds_2d(bpy.context.scene, bpy.context.scene.camera, row[4])
         if width < 0.05 or height < 0.05:
             return None
-        return f"{model_index} {x+width/2} {y+height/2} {width} {height}"
+        return f"{row[0]} {x+width/2} {y+height/2} {width} {height}"
 
     def save_label(self, path, data):
         with open(path, "w") as f:
             for row in data:
-                label_line = self.calculate_label_by_blender(row[0], row[4])
-                if label_line:
-                    f.write(f"{label_line}\n")
+                # f.write(f"{self.calculate_label(row)}\n")
+                if self.calculate_label_by_blender(row):
+                    f.write(f"{self.calculate_label_by_blender(row)}\n")
 
     def move_camera_and_environment_randomly(self):
         
@@ -367,7 +342,7 @@ class BlenderChess:
 
     def generate_data(self, mode, iter, start_index = 0):
         # make dir if not exists named mode
-        data_dir = os.path.join(self.blender_dir, "..", "datasets")
+        data_dir = os.path.join(self.blender_dir, "..", "datasets_kq")
         if not os.path.exists(os.path.join(data_dir, mode)):
             os.makedirs(os.path.join(data_dir, mode))
             os.makedirs(os.path.join(data_dir, mode, "images"))

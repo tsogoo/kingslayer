@@ -1,0 +1,13 @@
+path: /mnt/d/work/kingslayer/
+train: ./datasets_board/train
+val: ./datasets_board/val
+test: ./datasets_board/test
+nc: 1 # Number of classes
+names: [ "Board"]
+
+batch_size: 8
+epochs: 100
+fliplr: 0
+# grayscale_conversion: True
+# data_augmentation: False
+img_size: 640
