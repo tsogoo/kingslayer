@@ -54,7 +54,7 @@ class InverseKinematics:
         l1_angle = self.angle1+l1_angle
         l2_angle = self.angle2+l2_angle
 
-        return get_pos(bed_angle, l1_angle, l2_angle)
+        return self.get_pos(bed_angle, l1_angle, l2_angle)
     
     def set_position(self, newpos, homing_axes):
         for s in self.steppers:
