@@ -15,14 +15,16 @@ class InverseKinematics:
         self.l0 = config.getfloat('l0', above=0.)
         self.l1 = config.getfloat('l1', above=0.)
         self.l2 = config.getfloat('l2', above=0.)
-        self.x = config.getfloat('x', above=0.)
-        self.y = config.getfloat('y', above=0.)
+        self.angle1 = config.getfloat('angle1')
+        self.angle2 = config.getfloat('angle2')
 
         # Setup steppers
         self.steppers = []
         for type in 'bas':
             s = stepper.PrinterStepper(config.getsection('stepper_'+type), True)
-            s.setup_itersolve('inverse_stepper_alloc', type.encode(), self.l0, self.l1, self.l2, self.x, self.y)
+            s.setup_itersolve('inverse_stepper_alloc', type.encode()
+                , self.l0, self.l1, self.l2
+                , self.angle1, self.angle2)
             s.set_trapq(toolhead.get_trapq())
             toolhead.register_step_generator(s.generate_steps)
             self.steppers.append(s)
@@ -43,9 +45,11 @@ class InverseKinematics:
         l2_angle = stepper_positions[self.steppers['a'].get_name()]
         
         # convert to cartesian x, y, z
+        l1_angle = math.radians(self.angle1)+l1_angle
+        l2_angle = math.radians(self.angle2)+l2_angle
         r = self.l0+self.l1*math.cos(l1_angle)+self.l2*math.cos(l1_angle+l2_angle)
-        x = r*math.sin(bed_angle)-self.x 
-        y = r*math.cos(bed_angle)-self.y
+        x = r*math.sin(bed_angle)
+        y = r*math.cos(bed_angle)
         z = self.l1*math.sin(l1_angle)+self.l2*math.sin(l1_angle+l2_angle)
 
         return [x, y, z]

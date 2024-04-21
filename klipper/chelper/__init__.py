@@ -166,7 +166,8 @@ defs_kin_idex = """
 
 defs_kin_inverse = """
     struct stepper_kinematics *inverse_stepper_alloc(char type
-        , double l0, double l1, double l2, double x, double y);
+        , double l0, double l1, double l2
+        , double angle1, double angle2);
 """
 
 defs_serialqueue = """
