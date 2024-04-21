@@ -20,12 +20,6 @@ struct inverse_stepper {
     double angle1, angle2;   //  angle1=between shoulder and xy, angle2= between shoulder and arm 
 };
 
-static inline double
-degree_to_redians(double degree)
-{
-    return degree / 180.0 * M_PI;
-}
-
 /** 
     inverse kinematics
     l0 + l1 * cos(a) + l2 * cos(a+b) = sqrt(x*x + y*y)
@@ -71,7 +65,7 @@ inverse_stepper_shoulder_angle_calc(struct stepper_kinematics *sk, struct move *
     double r = get_radius(fs->l0, c.x, c.y);
     double d = fs->l1+fs->l2*cos_b;
     double angle = atan2(c.z, r) - (d==0 ? M_PI/2 : atan2(fs->l2*sin_b, d));
-    angle -= degree_to_redians(fs->angle1);
+    angle -= fs->angle1;
     return angle;
 }
 
@@ -82,7 +76,7 @@ inverse_stepper_arm_angle_calc(struct stepper_kinematics *sk, struct move *m, do
                 sk, struct inverse_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
     double angle = acos(calc_arm_angle_cos(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z));
-    angle -= degree_to_redians(fs->angle2);
+    angle -= fs->angle2;
     return angle;
 }
 

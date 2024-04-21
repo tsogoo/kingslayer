@@ -15,8 +15,8 @@ class InverseKinematics:
         self.l0 = config.getfloat('l0', above=0.)
         self.l1 = config.getfloat('l1', above=0.)
         self.l2 = config.getfloat('l2', above=0.)
-        self.angle1 = config.getfloat('angle1')
-        self.angle2 = config.getfloat('angle2')
+        self.angle1 = math.radians(config.getfloat('angle1'))
+        self.angle2 = math.radians(config.getfloat('angle2'))
         
         # limit
         # l1 bend limit
@@ -35,12 +35,13 @@ class InverseKinematics:
             toolhead.register_step_generator(s.generate_steps)
             self.steppers.append(s)
 
+        # set initial position
+        self.set_position(self.get_pos(0, self.angle1, self.angle2), ())
+
     def get_steppers(self):
         return self.steppers
     def calc_position(self, stepper_positions):
 
-        # inversion of kin_inverse.c
-        
         # bed rotation angle
         bed_angle = stepper_positions['b']
         
@@ -50,15 +51,10 @@ class InverseKinematics:
         # arm rotation angle relative to shoulder
         l2_angle = stepper_positions['a']
         
-        # convert to cartesian x, y, z
-        l1_angle = math.radians(self.angle1)+l1_angle
-        l2_angle = math.radians(self.angle2)+l2_angle
-        r = self.l0+self.l1*math.cos(l1_angle)+self.l2*math.cos(l1_angle+l2_angle)
-        x = r*math.sin(bed_angle)
-        y = r*math.cos(bed_angle)
-        z = self.l1*math.sin(l1_angle)+self.l2*math.sin(l1_angle+l2_angle)
+        l1_angle = self.angle1+l1_angle
+        l2_angle = self.angle2+l2_angle
 
-        return [x, y, z]
+        return get_pos(bed_angle, l1_angle, l2_angle)
     
     def set_position(self, newpos, homing_axes):
         for s in self.steppers:
@@ -72,6 +68,13 @@ class InverseKinematics:
             raise move.move_error("out of bound")
     def get_status(self, eventtime):
         pass
+    def get_pos(self, bed_angle, l1_angle, l2_angle):
+        # inversion of kin_inverse.c        
+        r = self.l0+self.l1*math.cos(l1_angle)+self.l2*math.cos(l1_angle+l2_angle)
+        x = r*math.sin(bed_angle)
+        y = r*math.cos(bed_angle)
+        z = self.l1*math.sin(l1_angle)+self.l2*math.sin(l1_angle+l2_angle)
+        return [x, y, z]
 
 def load_kinematics(toolhead, config):
     return InverseKinematics(toolhead, config)
