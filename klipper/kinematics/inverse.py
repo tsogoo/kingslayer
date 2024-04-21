@@ -36,7 +36,7 @@ class InverseKinematics:
             self.steppers.append(s)
 
         # set initial position
-        self.set_position(self.get_pos(0, self.angle1, self.angle2), ())
+        # self.set_position(self.get_pos(0, self.angle1, self.angle2), ())
 
     def get_steppers(self):
         return self.steppers
