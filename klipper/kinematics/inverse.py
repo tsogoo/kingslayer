@@ -17,16 +17,10 @@ class InverseKinematics:
         self.l2 = config.getfloat('l2', above=0.)
         self.angle1 = math.radians(config.getfloat('angle1'))
         self.angle2 = math.radians(config.getfloat('angle2'))
-        
-        # limit
-        # l1 bend limit
-        self.angle1_min = math.degrees(10)
-        # distance limit
-        self.r = self.l0+self.l1*math.cos(self.angle1_min)+self.l2 
 
         # Setup steppers
         self.steppers = []
-        for type in 'bas':
+        for type in 'sab':
             s = stepper.PrinterStepper(config.getsection('stepper_'+type), True)
             s.setup_itersolve('inverse_stepper_alloc', type.encode()
                 , self.l0, self.l1, self.l2
@@ -51,8 +45,8 @@ class InverseKinematics:
         # arm rotation angle relative to shoulder
         l2_angle = stepper_positions['a']
         
-        l1_angle = self.angle1+l1_angle
-        l2_angle = self.angle2+l2_angle
+        # l1_angle = self.angle1+l1_angle
+        # l2_angle = self.angle2+l2_angle
 
         return self.get_pos(bed_angle, l1_angle, l2_angle)
     
@@ -64,16 +58,39 @@ class InverseKinematics:
     def check_move(self, move):
         # check move
         end_pos = move.end_pos
-        if self.r <= math.sqrt(end_pos[0]**2+end_pos[1]**2+end_pos[2]**2):
-            raise move.move_error("out of bound")
+        x = end_pos[0]
+        y = end_pos[1]
+        z = end_pos[2]
+        r = math.sqrt(x*x+y*y)-self.l0
+        
+        # arm
+        cos_b = (r*r+z*z-self.l1*self.l1-self.l2*self.l2)/(2*self.l1*self.l2)
+        if cos_b > 1 or cos_b < -1:
+            raise move.move_error("arm: coord limit")
+        b = math.degrees(math.acos(cos_b))        
+        if b > 150:
+            raise move.move_error("arm: bend max limit /down/")
+        if b < 0:
+            raise move.move_error("arm: bend min limit /up/")
+        
+        # shoulder
+        sin_b = math.sqrt(1 - cos_b*cos_b)
+        d = math.sqrt(r*r+z*z)
+        if z > d:
+            raise move.move_error("shoulder: z max limit")
+        a = math.degrees(math.asin(self.l2*sin_b/d)+math.asin(z/d))
+        if a > 90:
+            raise move.move_error("shoulder: bend max limit /up/")
+        if a < 10:
+            raise move.move_error("shoulder: bend min limit /down/")
     def get_status(self, eventtime):
         pass
     def get_pos(self, bed_angle, l1_angle, l2_angle):
         # inversion of kin_inverse.c        
-        r = self.l0+self.l1*math.cos(l1_angle)+self.l2*math.cos(l1_angle+l2_angle)
+        r = self.l0+self.l1*math.cos(l1_angle)+self.l2*math.cos(l1_angle-l2_angle)
         x = r*math.sin(bed_angle)
         y = r*math.cos(bed_angle)
-        z = self.l1*math.sin(l1_angle)+self.l2*math.sin(l1_angle+l2_angle)
+        z = self.l1*math.sin(l1_angle)-self.l2*math.sin(l2_angle-l1_angle)
         return [x, y, z]
 
 def load_kinematics(toolhead, config):

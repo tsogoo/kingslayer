@@ -43,15 +43,24 @@ calc_arm_angle_cos(double l0, double l1, double l2, double x, double y, double z
     return (r*r+z*z-l1*l1-l2*l2)/(2*l1*l2);
 }
 
+static inline double
+calc_shoulder_angle_acos(double l0, double l1, double l2, double x, double y, double z)
+{
+    double cos_b = calc_arm_angle_cos(l0, l1, l2, x, y, z);
+    double sin_b = sqrt(1 - cos_b*cos_b);
+    double r = get_radius(l0, x, y);
+    double d = sqrt(r*r+z*z);
+    double angle = asin(l2*sin_b/d)+asin(z/d);
+    return angle;
+}
+
 static double
 inverse_stepper_bed_angle_calc(struct stepper_kinematics *sk, struct move *m, double move_time)
 {
     struct inverse_stepper *fs = container_of(
                 sk, struct inverse_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
-    if (c.y == 0)
-        return M_PI/2;
-    return atan2(c.x, c.y);
+    return asin(c.x/sqrt(c.x*c.x+c.y*c.y));
 }
 
 static double
@@ -60,13 +69,8 @@ inverse_stepper_shoulder_angle_calc(struct stepper_kinematics *sk, struct move *
     struct inverse_stepper *fs = container_of(
                 sk, struct inverse_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
-    double cos_b = calc_arm_angle_cos(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z);
-    double sin_b = sqrt(1 - cos_b*cos_b);
-    double r = get_radius(fs->l0, c.x, c.y);
-    double d = fs->l1+fs->l2*cos_b;
-    double angle = atan2(c.z, r) - (d==0 ? M_PI/2 : atan2(fs->l2*sin_b, d));
-    angle -= fs->angle1;
-    return angle;
+    double angle = calc_shoulder_angle_acos(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z);
+    return -angle;
 }
 
 static double
@@ -76,8 +80,8 @@ inverse_stepper_arm_angle_calc(struct stepper_kinematics *sk, struct move *m, do
                 sk, struct inverse_stepper, sk);
     struct coord c = move_get_coord(m, move_time);
     double angle = acos(calc_arm_angle_cos(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z));
-    angle -= fs->angle2;
-    return angle;
+    double angle_s = calc_shoulder_angle_acos(fs->l0, fs->l1, fs->l2, c.x, c.y, c.z);
+    return angle - angle_s;
 }
 
 struct stepper_kinematics * __visible
