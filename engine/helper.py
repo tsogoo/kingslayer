@@ -3,9 +3,11 @@ import chess.engine
 import os
 import subprocess
 
+
 # square to x,y : 52/e7/ -> 6,4
 def square_to_position(square):
     return int((square + 1) / 8), (square + 1) % 8 - 1
+
 
 def get_move(player_move):
     move = None
@@ -28,7 +30,9 @@ class ChessEngineHelper:
         if not os.path.exists(engine_file_absolute_path):
             print("Engine not found, downloading....")
             engine_url = "https://github.com/official-stockfish/Stockfish/releases/latest/download/stockfish-ubuntu-x86-64.tar"
-            command = "wget -q {} -O - | tar -C {} -xf - {}".format(engine_url, current_directory, engine_file)
+            command = "wget -q {} -O - | tar -C {} -xf - {}".format(
+                engine_url, current_directory, engine_file
+            )
             try:
                 subprocess.run(command, shell=True, check=True)
                 print("Engine downloaded")
@@ -57,6 +61,7 @@ class ChessEngineHelper:
     # get best possible move: -> e7e5
     def get_best_move(self):
         result = self.engine.play(self.board, chess.engine.Limit(time=0.1))
+        self.engine.quit()
         return str(result.move)
 
     # whether move is valid: e7e5 -> boolean
@@ -79,19 +84,20 @@ class ChessEngineHelper:
     # check game is over or stalemate
     def is_game_over(self):
         return self.board.is_game_over() or self.board.is_stalemate()
-    
 
     # get position: e7e5 -> [{x,y}, {x,y}] = [from, to]
     def get_position(self, player_move):
         move = get_move(player_move)
-        return [square_to_position(move.from_square), square_to_position(move.to_square)]
-
+        return [
+            square_to_position(move.from_square),
+            square_to_position(move.to_square),
+        ]
 
     # check square occupied by opponent figure: e7e5
     def is_occupied(self, player_move):
         move = get_move(player_move)
         return self.board.piece_at(move.to_square) is not None
-    
+
     # detect moved figure, then move
     def detect_move(self, fen):
         prev_board = self.board
@@ -103,9 +109,12 @@ class ChessEngineHelper:
             if prev_board.piece_at(square) != new_board.piece_at(square):
                 if new_board.piece_at(square) is not None:
                     to_square = square
-            if prev_board.piece_at(square) is not None and new_board.piece_at(square) is None:
+            if (
+                prev_board.piece_at(square) is not None
+                and new_board.piece_at(square) is None
+            ):
                 from_square = square
         move = chess.Move(from_square, to_square)
         # print(move)
-        
+
         self.move(str(move))

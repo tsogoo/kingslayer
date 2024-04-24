@@ -44,4 +44,4 @@ fen = d.detect()
 # helper.initialize_board(fen)
 # helper.destroy()
 
-# helper.destroy()    
+# helper.destroy()
