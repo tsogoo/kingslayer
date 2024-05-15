@@ -41,8 +41,12 @@ class Test:
             moves.append(RobotMove(RobotTask.Take, x_s, y_s))
             moves.append(RobotMove(RobotTask.Place, x_d, y_d))
         else:
+            if is_occupied:
+                moves.append(RobotMove(RobotTask.Take, x_d, y_d))
+                moves.append(RobotMove(RobotTask.Out))
+            
             is_promotion = self.chess_engine_helper.is_promotion(best_move)
-            # promotion move
+            # promotion move, pawn become queen
             if is_promotion:
                 # pawn
                 moves.append(RobotMove(RobotTask.Take, x_s, y_s))
@@ -53,9 +57,6 @@ class Test:
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
             else:
                 # normal move
-                if is_occupied:
-                    moves.append(RobotMove(RobotTask.Take, x_d, y_d))
-                    moves.append(RobotMove(RobotTask.Out))
                 moves.append(RobotMove(RobotTask.Take, x_s, y_s))
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
 
@@ -69,7 +70,11 @@ class Test:
     
 
 # testing
-t = Test()
+# t = Test()
 # t.move("e1g1") # castle
 # t.move("h7h8") # promotion
 # t.move("h1h7")
+    
+# r = Robot()
+# print(r.calc_position(0, 300, 60, 0, 150, 40.19))
+# print(r.calc_position(0, 300, 80, 0, 300, 60))
