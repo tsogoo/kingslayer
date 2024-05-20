@@ -1,6 +1,7 @@
 from enum import Enum
 import requests
-import math
+import socket
+import os
 
 class RobotTask(Enum):
     Take = "Take"   # take figure from board
@@ -23,16 +24,13 @@ class Robot:
 
     def __init__(self):
         self.apiHandler = RobotApiHandler()
-        self.l0 = 60
-        self.l1 = 300
-        self.l2 = 300
-        self.echos(self.startup_code())
+        # self.send_all(self.startup_code())
 
     def move(self, moves):
         for move in moves:
             gcodes = self.move_code(move)
-            self.echos(gcodes)
-        self.echos(self.after_move_code())
+            self.send_all(gcodes)
+        self.send_all(self.after_move_code())
 
     def move_code(self, move):
         # Queen position
@@ -54,7 +52,7 @@ class Robot:
             gcode.append("SET_SERVO servo=servo_arm angle=120")
         gcode.append("G1 Z{} F{}".format(move.z, move.up_down_speed))
 
-        print(gcode)
+        # print(gcode)
         return gcode
 
     def after_move_code(self):
@@ -65,12 +63,12 @@ class Robot:
     def startup_code(self):
         return ["G28"]
     
-    def echo(self, gcode):
+    def send(self, gcode):
         self.apiHandler.command(RobotApiCommand.Command, gcode)
     
-    def echos(self, gcodes):
+    def send_all(self, gcodes):
         for gcode in gcodes:
-            self.echo(gcode)
+            self.send(gcode)
 
 
 class RobotHandler:
@@ -97,37 +95,16 @@ class RobotApiHandler:
     # send commands to octoprint
     def command(self, command, data=None):
         
-        baseurl = 'http://192.168.1.2:5000/api'
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Api-Key': 'F51BE844EAE241D886CDF3A9224EB179'
-        }
-
-        # check octoprint status
-        if command == RobotApiCommand.Status:
-            response = requests.get(baseurl+'/connection', headers=headers)
-            if response.status_code == 200:
-                if response.json()['current']['state'] == "Operational":
-                    return
-            raise Exception("PrinterNotReady")
-
-        if command == RobotApiCommand.Connect:
-            # connect
-            data = {
-                "command": "connect",
-                "port": "/tmp/printer"
-            }
-            response = requests.post(baseurl+'/connection', json=data, headers=headers)
-            if response.status_code == 204:
-                return
-            raise Exception("PrinterConnectionError")
-            
         if command == RobotApiCommand.Command:
-            # command
-            data = {
-                "command": data
-            }
-            response = requests.post(baseurl+'/printer/command', json=data, headers=headers)
-            if response.status_code == 204:
-                return
-            raise Exception("PrinterCommandError")
+            socket_path = '/tmp/klippy_uds'
+            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            client.connect(socket_path)
+            message = '{"id": 1, "method": "gcode/script", "params": {"script": "%s"}}' % data
+            client.sendall(("%s\x03" % (message)).encode())
+            # response = client.recv(1024)
+            # print(f'Received response: {response.decode()}')
+            client.close()
+
+# r = RobotApiHandler()
+# r.command(command=RobotApiCommand.Command, data="G28")
+# r.command(command=RobotApiCommand.Command, data="G1 X20")

@@ -25,11 +25,10 @@ class Custom2Kinematics:
         self.rails = []
         for type in 'bsa':
             r = stepper.LookupMultiRail(config.getsection('stepper_'+type), units_in_radians=True)
+            r.setup_itersolve('custom_stepper_alloc', type.encode(), self.l0, self.l1, self.l2)
             self.rails.append(r)
         self.steppers = [s for rail in self.rails for s in rail.get_steppers()]
         for s in self.get_steppers():
-            s.setup_itersolve('custom_stepper_alloc', type.encode()
-                , self.l0, self.l1, self.l2)
             s.set_trapq(toolhead.get_trapq())
             toolhead.register_step_generator(s.generate_steps)
 
@@ -38,34 +37,36 @@ class Custom2Kinematics:
     def calc_position(self, stepper_positions):
         pass
     def set_position(self, newpos, homing_axes):
-        pass
+        for rail in self.rails:
+            rail.set_position(newpos)
     def home(self, homing_state):
         
-        # force move stepper without kinematic
-        force_move = self.printer.lookup_object('force_move')
         toolhead = self.printer.lookup_object('toolhead')
-        dir = 1
-        for rail in self.rails:
+        
+        # for homing switch to cartesian kinematics
+        # after homed switch to custom kinematics
+        
+        for axis, rail in zip('xyz', self.rails):
+            rail.setup_itersolve('cartesian_stepper_alloc', axis.encode())
+
+        for axis, rail in enumerate(self.rails):
             # ignore bed homing
             if rail.get_name(True) == 'b':
                 continue
-            if rail.get_name(True) == 'a':
-                dir = -1
-            else:
-                dir = 1
-            for stepper in rail.get_steppers():
-                move_end_print_time = toolhead.get_last_move_time()
-                triggered = 0
-                for mcu_endstop, n in rail.get_endstops():
-                    while 1:
-                        triggered = mcu_endstop.query_endstop(move_end_print_time)
-                        if triggered:
-                            break
-                        force_move.manual_move(stepper, .1*dir, 200, 200)
-                        move_end_print_time = toolhead.get_last_move_time()
+            
+            homepos = [None, None, None, None]
+            homepos[axis] = 0
+            forcepos = list(homepos)
+            forcepos[axis] = -1
+            homing_state.home_rails([rail], forcepos, homepos)
+            
+        for axis, rail in enumerate(self.rails):
+            rail.setup_itersolve('custom_stepper_alloc'
+                    , rail.get_name(True).encode(), self.l0, self.l1, self.l2)
+        
         # set kinematic position
         curpos = toolhead.get_position()
-        curpos[0] = 0
+        curpos[0] = 0   # ignore bed homing
         curpos[1] = (
             self.l0
             +self.l1*math.cos(math.radians(self.a1))
