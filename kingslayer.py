@@ -296,6 +296,7 @@ class Kingslayer:
 
     def get_figure_actual_position(self, x, y, is_occupied=False):
         # new board square height, width = 370/8 = 46.25
+        # x, y => figure's square coordinate on board, is_occupied => whether square is occupied
         if is_occupied:
             # TODO get detected location
             return x*46+23, y*46+23

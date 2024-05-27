@@ -89,27 +89,69 @@ class RobotApiCommand(Enum):
 class RobotApiHandler:
 
     def __init__(self):
-        pass
+        self.send_to_octoprint = True
+        if self.send_to_octoprint:
+            self.octoprint_url = ""
         # self.command(RobotApiCommand.Connect)
 
     # send commands to octoprint
     def command(self, command, data=None):
         
-        if command == RobotApiCommand.Command:
-            socket_path = '/tmp/klippy_uds'
-            client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            client.connect(socket_path)
-            message = '{"id": 1, "method": "gcode/script", "params": {"script": "%s"}}' % data
-            client.sendall(("%s\x03" % (message)).encode())
-            # response = client.recv(1024)
-            # print(f'Received response: {response.decode()}')
-            client.close()
+        if not self.send_to_octoprint:
+            # send command directly to klipper
+            if command == RobotApiCommand.Command:
+                socket_path = '/tmp/klippy_uds'
+                client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                client.connect(socket_path)
+                message = '{"id": 1, "method": "gcode/script", "params": {"script": "%s"}}' % data
+                client.sendall(("%s\x03" % (message)).encode())
+                # response = client.recv(1024)
+                # print(f'Received response: {response.decode()}')
+                client.close()
+        else:
+            # send command to octoprint
+            if command == RobotApiCommand.Command:
+                # check printer is online
+                # send command
+                # subscribe command response
+                
+                baseurl = self.octoprint_url
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-Api-Key': 'F51BE844EAE241D886CDF3A9224EB179'
+                }
+
+                # check printer status
+                attempt = 5
+                response = requests.get(baseurl+'/connection', headers=headers)
+                if response.status_code == 200:
+                    if response.json()['current']['state'] == "Operational":
+                        attempt = 0
+                
+                # connect to printer
+                while attempt > 0:
+                    data = {
+                        "command": "connect",
+                        "port": "/tmp/printer"
+                    }
+                    response = requests.post(baseurl+'/connection', json=data, headers=headers)
+                    if response.status_code == 204:
+                        break
+                    attempt = attempt-1
+                    if attempt == 0:
+                        raise Exception("PrinterConnectionError")
+
+                # send command
+                data = {
+                    "command": data
+                }
+                response = requests.post(baseurl+'/printer/command', json=data, headers=headers)
+                if response.status_code == 204:
+                    return
+                raise Exception("PrinterCommandError")
 
     # e = chess_engine_helper, m = main/kingslayer/
     def move(self, e, m, best_move):
-        
-        # TODO k must implement get_figure_actual_position(x, y, is_occupied)
-        # x, y => figure's square coordinate on board, is_occupied => whether square is occupied
 
         moves = []
         
