@@ -2,13 +2,15 @@ import random
 import bpy
 import os
 
+
 def clamp(x, minimum, maximum):
     return max(minimum, min(x, maximum))
 
+
 def camera_view_bounds_2d(scene, cam_ob, me_ob):
-    
+
     # https://blender.stackexchange.com/questions/7198/save-the-2d-bounding-box-of-an-object-in-rendered-image-to-a-text-file
-    
+
     """
     Returns camera space bounding box of mesh object.
 
@@ -34,16 +36,13 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
     me.transform(me_ob.matrix_world)
     me.transform(mat)
 
-    
     camera = cam_ob.data
     frame = [-v for v in camera.view_frame(scene=scene)[:3]]
-    camera_persp = camera.type != 'ORTHO'
+    camera_persp = camera.type != "ORTHO"
 
-    
     lx = []
     ly = []
 
-    
     for v in me.vertices:
         co_local = v.co
         z = -co_local.z
@@ -72,10 +71,8 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
     min_y = clamp(min(ly), 0.0, 1.0)
     max_y = clamp(max(ly), 0.0, 1.0)
 
-    
     mesh_eval.to_mesh_clear()
 
-    
     r = scene.render
     fac = r.resolution_percentage * 0.01
     dim_x = r.resolution_x * fac
@@ -86,37 +83,42 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
         return (0, 0, 0, 0)
 
     return (
-        round(min_x * dim_x ) / r.resolution_x,     # X
-        round(dim_y - max_y * dim_y) / r.resolution_y,    # Y
+        round(min_x * dim_x) / r.resolution_x,  # X
+        round(dim_y - max_y * dim_y) / r.resolution_y,  # Y
         round((max_x - min_x) * dim_x) / r.resolution_x,  # Width
-        round((max_y - min_y) * dim_y) / r.resolution_y  # Height
+        round((max_y - min_y) * dim_y) / r.resolution_y,  # Height
     )
+
 
 def look_at(target):
     camera = bpy.context.scene.camera
-    
+
     target_location = target.location
     dimensions = target.dimensions
-    half_width = dimensions[0]/2
-    half_height = dimensions[1]/2
+    half_width = dimensions[0] / 2
+    half_height = dimensions[1] / 2
 
     # set camera location
-    camera.location.x = random.uniform(target_location.x - half_width, target_location.x + half_width)
-    camera.location.y = random.uniform(target_location.y - half_height, target_location.y + half_height)
-    camera.location.z = 4.2 # adjust camera height, or random height
-    
+    camera.location.x = random.uniform(
+        target_location.x - half_width, target_location.x + half_width
+    )
+    camera.location.y = random.uniform(
+        target_location.y - half_height, target_location.y + half_height
+    )
+    camera.location.z = 4.2  # adjust camera height, or random height
+
     # Calculate the direction vector from camera to target
     direction = target.location - camera.location
 
     # Calculate the rotation quaternion to point the camera at the target
-    rotation_quaternion = direction.to_track_quat('-Z', 'Y')
+    rotation_quaternion = direction.to_track_quat("-Z", "Y")
 
     # Set the rotation of the camera
     camera.rotation_euler = rotation_quaternion.to_euler()
 
 
 class BlenderChess:
-    
+
     def __init__(self):
         blend_file_path = bpy.data.filepath
         self.blender_dir = os.path.dirname(blend_file_path)
@@ -130,40 +132,42 @@ class BlenderChess:
         self.MAX_X = 1
         self.MIN_Y = -1
         self.MAX_Y = 1
-        self.RENDER_WIDTH = 640
-        self.RENDER_HEIGHT = 640
-        self.CROP_WIDTH = 640
-        self.CROP_HEIGHT= 640
-        self.IMG_WIDTH = 640
-        self.IMG_HEIGHT = 640
+        self.RENDER_WIDTH = 840
+        self.RENDER_HEIGHT = 840
+        self.CROP_WIDTH = 840
+        self.CROP_HEIGHT = 840
+        self.IMG_WIDTH = 840
+        self.IMG_HEIGHT = 840
         self.TRAIN_ITER = 20000
-        self.VAL_ITER = 200
+        self.VAL_ITER = 2000
         self.TEST_ITER = 20
 
         # world = bpy.data.worlds['World']
         # world.use_nodes = True
-        bpy.data.objects['BgPlane'].select_set(True)
-        bpy.context.view_layer.objects.active = bpy.data.objects['BgPlane']
-        material = bpy.data.objects['BgPlane'].material_slots[0].material
+        bpy.data.objects["BgPlane"].select_set(True)
+        bpy.context.view_layer.objects.active = bpy.data.objects["BgPlane"]
+        material = bpy.data.objects["BgPlane"].material_slots[0].material
         # bgplane.use_nodes = True
-        self.bg_node = material.node_tree.nodes['Image Texture']
+        self.bg_node = material.node_tree.nodes["Image Texture"]
 
     def set_random_background(self):
-        bg_imgs = os.listdir(os.path.join(self.blender_dir,"..", "backgrounds"))
+        bg_imgs = os.listdir(os.path.join(self.blender_dir, "..", "backgrounds"))
         bg_img = random.choice(bg_imgs)
-        self.bg_node.image = bpy.data.images.load(os.path.join(self.blender_dir,"..", "backgrounds", bg_img))
+        self.bg_node.image = bpy.data.images.load(
+            os.path.join(self.blender_dir, "..", "backgrounds", bg_img)
+        )
 
     def set_material_to_current_object(self, obj, material_name):
         if obj is None:
             print(f"Object not found.")
             return
-        
+
         # Get the material by name
         mat = bpy.data.materials.get(material_name)
         if mat is None:
             print(f"Material '{material_name}' not found.")
             return
-        
+
         # Assign the material to the object
         if obj.data.materials:
             # If the object already has materials assigned, replace the first one
@@ -180,20 +184,21 @@ class BlenderChess:
             return
 
         # Assign the material to the active object
-        
-        #bpy.context.object.data.materials.append(material)
-        
+
+        # bpy.context.object.data.materials.append(material)
 
     def copy_model_by_name(self, model_index, color, collection_name, y_pos, x_pos):
         # Duplicate the object by name
-        bpy.ops.object.select_all(action='DESELECT')
+        bpy.ops.object.select_all(action="DESELECT")
         bpy.data.objects[self.models[model_index]].select_set(True)
-        bpy.context.view_layer.objects.active = bpy.data.objects[self.models[model_index]]
+        bpy.context.view_layer.objects.active = bpy.data.objects[
+            self.models[model_index]
+        ]
         bpy.ops.object.duplicate()
 
         # Get the duplicated object
         duplicated_obj = bpy.context.active_object
-        if color==self.BLACK:
+        if color == self.BLACK:
             self.set_material_to_current_object(duplicated_obj, "BlackModel")
         else:
             self.set_material_to_current_object(duplicated_obj, "WhiteModel")
@@ -210,16 +215,15 @@ class BlenderChess:
         duplicated_obj.location.x = x_pos
         duplicated_obj.location.y = y_pos
         duplicated_obj.rotation_euler.z = random.uniform(0, 360)
-        
-        return duplicated_obj
-        
 
-    def delete_objects_in_collection(self, collection_name='models_temp'):
+        return duplicated_obj
+
+    def delete_objects_in_collection(self, collection_name="models_temp"):
         # Check if the collection exists
         if collection_name in bpy.data.collections:
             # Get the collection
             collection = bpy.data.collections[collection_name]
-            
+
             # Iterate over all objects in the collection
             for obj in collection.objects:
                 # Remove the object from the scene
@@ -230,11 +234,11 @@ class BlenderChess:
         # Set the render resolution (optional)
         bpy.context.scene.render.resolution_x = self.RENDER_WIDTH
         bpy.context.scene.render.resolution_y = self.RENDER_HEIGHT
-        bpy.context.scene.render.engine = 'CYCLES'
+        bpy.context.scene.render.engine = "CYCLES"
         bpy.context.scene.cycles.samples = 8
         # Set the output file format and path
-        output_filename = f"{filename}.png" 
-        
+        output_filename = f"{filename}.png"
+
         bpy.context.scene.render.filepath = output_filename
 
         # Render the scene
@@ -242,14 +246,11 @@ class BlenderChess:
 
         print("Image rendered and saved to:", output_filename)
 
-     
         image = bpy.data.images.load(output_filename)
-      
 
         image.scale(self.IMG_WIDTH, self.IMG_HEIGHT)
 
         image.save_render(output_filename)
-
 
     def get_random_not_collided_position(self, data, radius):
         while True:
@@ -257,23 +258,28 @@ class BlenderChess:
             y_pos = random.uniform(self.MIN_Y, self.MAX_Y)
             collided = False
             for d in data:
-                if (d[2] - x_pos)**2 + (d[3] - y_pos)**2 < radius**2:
+                if (d[2] - x_pos) ** 2 + (d[3] - y_pos) ** 2 < radius**2:
                     collided = True
                     break
             if not collided:
                 return x_pos, y_pos
 
-   
     def draw_chessboard(self):
         total_models = random.randint(self.MIN_MODELS, self.MAX_MODELS)
         data = []
         bpy.data.objects["Board"].hide_render = random.choice([True, False])
         for i in range(total_models):
-            model_index = random.randint(0, len(self.models)-1)
+            model_index = random.randint(0, len(self.models) - 1)
             side = random.choice([self.BLACK, self.WHITE])
-            x_pos, y_pos = self.get_random_not_collided_position(data, 1.5 * self.MODEL_RADIUS)
-            model = self.copy_model_by_name(model_index, side, "models_temp", x_pos, y_pos)
-            data.append([f"{model_index + side * len(self.models)}", side, x_pos, y_pos, model])
+            x_pos, y_pos = self.get_random_not_collided_position(
+                data, 1.5 * self.MODEL_RADIUS
+            )
+            model = self.copy_model_by_name(
+                model_index, side, "models_temp", x_pos, y_pos
+            )
+            data.append(
+                [f"{model_index + side * len(self.models)}", side, x_pos, y_pos, model]
+            )
 
         # self.copy_model_by_name(2, 0, "models_temp", self.MAX_X, -self.MAX_Y)
         # data.append([2,0, self.MAX_X, -self.MAX_Y])
@@ -299,46 +305,50 @@ class BlenderChess:
         # data.append([2,0, 0, -self.MAX_Y])
         # self.copy_model_by_name(2, 0, "models_temp", 0, self.MAX_Y)
         # data.append([2,0, 0, self.MAX_Y])
-            
+
         # look at board
         # look_at(target = bpy.data.objects["Board"])
-        
-        return  data
 
+        return data
 
     def calculate_label(self, row):
-       
-        scale=1
-        if row[0]==0 and row[0]==6: # pawn
-            scale=1
-        elif row[0]==1 and row[0]==7: # bishop
-            scale=1.75
-        elif row[0]==2 and row[0]==8: # king 
-            scale=1.9
-        elif row[0]==3 and row[0]==9: # queen
-            scale=1.8
-        elif row[0]==4 and row[0]==10: # rook
-            scale=1.5
-        elif row[0]==5 and row[0]==11: # knight
-            scale=1.7
-        
+
+        scale = 1
+        if row[0] == 0 and row[0] == 6:  # pawn
+            scale = 1
+        elif row[0] == 1 and row[0] == 7:  # bishop
+            scale = 1.75
+        elif row[0] == 2 and row[0] == 8:  # king
+            scale = 1.9
+        elif row[0] == 3 and row[0] == 9:  # queen
+            scale = 1.8
+        elif row[0] == 4 and row[0] == 10:  # rook
+            scale = 1.5
+        elif row[0] == 5 and row[0] == 11:  # knight
+            scale = 1.7
+
         trapets_ind_x = 1 + (row[3] / 8.6)
-        scale = scale * (1.5 - (row[3] / 5 ))
+        scale = scale * (1.5 - (row[3] / 5))
         trapets_ind_y = 1
 
         y = (row[3] * trapets_ind_x) / (2.5 * self.MAX_Y) + 0.440 * self.MAX_Y
         print(row[3], y)
-        x = (row[2] * trapets_ind_x) / (2.3 * self.MAX_X)  + 0.490 * self.MAX_X
+        x = (row[2] * trapets_ind_x) / (2.3 * self.MAX_X) + 0.490 * self.MAX_X
         print(row[2], x)
-        height = (scale) * self.MODEL_RADIUS  / (2.4     * self.MAX_Y * trapets_ind_x) + 0.04
-        width = scale * self.MODEL_RADIUS * trapets_ind_x / (2.4 * self.MAX_X) + abs(row[2])/50
+        height = (scale) * self.MODEL_RADIUS / (2.4 * self.MAX_Y * trapets_ind_x) + 0.04
+        width = (
+            scale * self.MODEL_RADIUS * trapets_ind_x / (2.4 * self.MAX_X)
+            + abs(row[2]) / 50
+        )
         if x < 0 or x > 1 or y < 0 or y > 1:
             print("Invalid label", row, x, y, width, height)
             exit()
         return f"{row[0]} {x} {y} {width} {height}"
 
-    def calculate_label_by_blender(self, model_index, blender_model):    
-        x, y, width, height = camera_view_bounds_2d(bpy.context.scene, bpy.context.scene.camera, blender_model)
+    def calculate_label_by_blender(self, model_index, blender_model):
+        x, y, width, height = camera_view_bounds_2d(
+            bpy.context.scene, bpy.context.scene.camera, blender_model
+        )
         if width < 0.05 or height < 0.05:
             return None
         return f"{model_index} {x+width/2} {y+height/2} {width} {height}"
@@ -351,21 +361,29 @@ class BlenderChess:
                     f.write(f"{label_line}\n")
 
     def move_camera_and_environment_randomly(self):
-        
-        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = random.uniform(0, 1)
-        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[0].default_value = (random.uniform(0, 1),random.uniform(0,1), random.uniform(0,1), 1)
+
+        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[
+            1
+        ].default_value = random.uniform(0, 1)
+        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[
+            0
+        ].default_value = (
+            random.uniform(0, 1),
+            random.uniform(0, 1),
+            random.uniform(0, 1),
+            1,
+        )
 
         bpy.data.objects["Sun"].data.energy = random.uniform(0.1, 8.5)
 
         bpy.data.objects["Camera"].location.x = random.uniform(1, 2)
-        #bpy.data.objects["Camera"].location.y = random.uniform(-1, 1)
+        # bpy.data.objects["Camera"].location.y = random.uniform(-1, 1)
         bpy.data.objects["Camera"].location.z = random.uniform(2.5, 3.5)
         bpy.data.objects["Camera"].rotation_euler.x = random.uniform(0.28, 0.5)
-        #bpy.data.objects["Camera"].rotation_euler.y = random.uniform(0, 0.5)
+        # bpy.data.objects["Camera"].rotation_euler.y = random.uniform(0, 0.5)
         bpy.data.objects["Camera"].rotation_euler.z = random.uniform(1.3, 1.8)
 
-
-    def generate_data(self, mode, iter, start_index = 0):
+    def generate_data(self, mode, iter, start_index=0):
         # make dir if not exists named mode
         data_dir = os.path.join(self.blender_dir, "..", "datasets")
         if not os.path.exists(os.path.join(data_dir, mode)):
@@ -376,12 +394,14 @@ class BlenderChess:
         for i in range(start_index, start_index + iter):
             self.move_camera_and_environment_randomly()
             data = self.draw_chessboard()
-            self.save_render(os.path.join(data_dir,mode, "images", str(i).zfill(4)))
-            self.save_label(os.path.join(data_dir,mode, "labels", f"{str(i).zfill(4)}.txt"), data)
+            self.save_render(os.path.join(data_dir, mode, "images", str(i).zfill(4)))
+            self.save_label(
+                os.path.join(data_dir, mode, "labels", f"{str(i).zfill(4)}.txt"), data
+            )
             self.delete_objects_in_collection()
 
 
 blender_chess = BlenderChess()
-blender_chess.generate_data("test",blender_chess.TEST_ITER, 0)
-blender_chess.generate_data("val", blender_chess.VAL_ITER, 0)
-blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 0)
+# blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
+# blender_chess.generate_data("val", blender_chess.VAL_ITER, 0)
+blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 12222)

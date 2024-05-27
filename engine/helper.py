@@ -61,7 +61,7 @@ class ChessEngineHelper:
     # get best possible move: -> e7e5
     def get_best_move(self):
         result = self.engine.play(self.board, chess.engine.Limit(time=0.1))
-        self.engine.quit()
+        # self.engine.quit()
         return str(result.move)
 
     # whether move is valid: e7e5 -> boolean
