@@ -6,7 +6,7 @@ import subprocess
 
 # square to x,y : 52/e7/ -> 6,4
 def square_to_position(square):
-    return int((square + 1) / 8), (square + 1) % 8 - 1
+    return square % 8, int(square/ 8)
 
 
 def get_move(player_move):
@@ -16,7 +16,6 @@ def get_move(player_move):
     except Exception:
         print("Invalid move, try again.")
     return move
-
 
 class ChessEngineHelper:
 
@@ -118,3 +117,19 @@ class ChessEngineHelper:
         # print(move)
 
         self.move(str(move))
+
+    def is_castling(self, player_move):
+        move = get_move(player_move)
+        return (
+            self.board.is_kingside_castling(move) or self.board.is_queenside_castling(move), 
+            self.board.is_kingside_castling(move)
+        )
+    
+    def is_promotion(self, player_move):
+        move = get_move(player_move)
+        x, y = square_to_position(move.to_square)
+        piece = self.board.piece_at(move.from_square)
+        return (
+            (piece.piece_type == chess.PAWN and y == 7 and piece.color == chess.WHITE) or
+            (piece.piece_type == chess.PAWN and y == 0 and piece.color == chess.BLACK)
+        )
