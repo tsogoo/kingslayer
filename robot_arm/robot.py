@@ -91,8 +91,8 @@ class RobotApiHandler:
     def __init__(self):
         self.send_to_octoprint = True
         if self.send_to_octoprint:
-            self.octoprint_url = ""
-        # self.command(RobotApiCommand.Connect)
+            # configure it elsewhere in config file
+            self.octoprint_url = "http://192.168.1.2:5000/api"
 
     # send commands to octoprint
     def command(self, command, data=None):
