@@ -105,6 +105,62 @@ class RobotApiHandler:
             # print(f'Received response: {response.decode()}')
             client.close()
 
+    # e = chess_engine_helper, m = main/kingslayer/
+    def move(self, e, m, best_move):
+        
+        # TODO k must implement get_figure_actual_position(x, y, is_occupied)
+        # x, y => figure's square coordinate on board, is_occupied => whether square is occupied
+
+        moves = []
+        
+        _from, _to = e.get_position(best_move)
+        xs, ys = _from[0], _from[1]
+        xd, yd = _to[0], _to[1]
+        
+        # source
+        x_s, y_s = m.get_figure_actual_position(xs, ys, True)
+        
+        # destination
+        is_occupied = e.is_occupied(best_move)
+        x_d, y_d = m.get_figure_actual_position(xd, yd, is_occupied)
+
+        # king castle
+        castling, king_castling = e.is_castling(best_move)
+        
+        # king castling move
+        if castling:
+            # king
+            moves.append(RobotMove(RobotTask.Take, x_s, y_s))
+            moves.append(RobotMove(RobotTask.Place, x_d, y_d))
+            
+            # rook
+            x_s, y_s = m.get_figure_actual_position(xs+3 if king_castling else xs-4, ys, True)
+            x_d, y_d = m.get_figure_actual_position(xs+1 if king_castling else xs-1, ys, True)
+            moves.append(RobotMove(RobotTask.Take, x_s, y_s))
+            moves.append(RobotMove(RobotTask.Place, x_d, y_d))
+        else:
+            if is_occupied:
+                moves.append(RobotMove(RobotTask.Take, x_d, y_d))
+                moves.append(RobotMove(RobotTask.Out))
+            
+            is_promotion = e.is_promotion(best_move)
+            # promotion move, pawn become queen
+            if is_promotion:
+                # pawn
+                moves.append(RobotMove(RobotTask.Take, x_s, y_s))
+                moves.append(RobotMove(RobotTask.Out))
+                
+                # queen
+                moves.append(RobotMove(RobotTask.In))
+                moves.append(RobotMove(RobotTask.Place, x_d, y_d))
+            else:
+                # normal move
+                moves.append(RobotMove(RobotTask.Take, x_s, y_s))
+                moves.append(RobotMove(RobotTask.Place, x_d, y_d))
+
+        self.robot_handler.move(moves)
+    
+
 # r = RobotApiHandler()
 # r.command(command=RobotApiCommand.Command, data="G28")
 # r.command(command=RobotApiCommand.Command, data="G1 X20")

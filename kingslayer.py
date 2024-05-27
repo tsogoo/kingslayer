@@ -294,6 +294,14 @@ class Kingslayer:
         for row in chess_board_array:
             print(row)
 
+    def get_figure_actual_position(self, x, y, is_occupied=False):
+        # new board square height, width = 370/8 = 46.25
+        if is_occupied:
+            # TODO get detected location
+            return x*46+23, y*46+23
+        # center of square
+        return x*46+23, y*46+23
+
 
 parser = argparse.ArgumentParser(
     description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
