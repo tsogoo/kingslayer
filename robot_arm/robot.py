@@ -2,6 +2,11 @@ from enum import Enum
 import requests
 import socket
 import os
+import logging
+import time
+import paho.mqtt.client as mqtt
+import yaml
+import threading
 
 class RobotTask(Enum):
     Take = "Take"   # take figure from board
@@ -23,14 +28,13 @@ class RobotMove:
 class Robot:
 
     def __init__(self):
-        self.apiHandler = RobotApiHandler()
-        # self.send_all(self.startup_code())
+        self.robotApiHandler = RobotApiHandler()
 
-    def move(self, moves):
+    def move_handle(self, moves):
         for move in moves:
             gcodes = self.move_code(move)
-            self.send_all(gcodes)
-        self.send_all(self.after_move_code())
+            self.commands_handle(gcodes)
+        self.commands_handle(self.after_move_code())
 
     def move_code(self, move):
         # Queen position
@@ -52,7 +56,6 @@ class Robot:
             gcode.append("SET_SERVO servo=servo_arm angle=120")
         gcode.append("G1 Z{} F{}".format(move.z, move.up_down_speed))
 
-        # print(gcode)
         return gcode
 
     def after_move_code(self):
@@ -63,92 +66,12 @@ class Robot:
     def startup_code(self):
         return ["G28"]
     
-    def send(self, gcode):
-        self.apiHandler.command(RobotApiCommand.Command, gcode)
+    def command_handle(self, gcode):
+        self.robotApiHandler.command(RobotApiCommand.Command, gcode)
     
-    def send_all(self, gcodes):
+    def commands_handle(self, gcodes):
         for gcode in gcodes:
-            self.send(gcode)
-
-
-class RobotHandler:
-
-    def __init__(self):
-        self.robot = Robot()
-    
-    def move(self, moves):
-        self.robot.move(moves)
-
-
-class RobotApiCommand(Enum):
-    Connect = "Connect"
-    Status = "Status"
-    Command = "Command"
-
-
-class RobotApiHandler:
-
-    def __init__(self):
-        self.send_to_octoprint = True
-        if self.send_to_octoprint:
-            # configure it elsewhere in config file
-            self.octoprint_url = "http://192.168.1.2:5000/api"
-
-    # send commands to octoprint
-    def command(self, command, data=None):
-        
-        if not self.send_to_octoprint:
-            # send command directly to klipper
-            if command == RobotApiCommand.Command:
-                socket_path = '/tmp/klippy_uds'
-                client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                client.connect(socket_path)
-                message = '{"id": 1, "method": "gcode/script", "params": {"script": "%s"}}' % data
-                client.sendall(("%s\x03" % (message)).encode())
-                # response = client.recv(1024)
-                # print(f'Received response: {response.decode()}')
-                client.close()
-        else:
-            # send command to octoprint
-            if command == RobotApiCommand.Command:
-                # check printer is online
-                # send command
-                # subscribe command response
-                
-                baseurl = self.octoprint_url
-                headers = {
-                    'Content-Type': 'application/json',
-                    'X-Api-Key': 'F51BE844EAE241D886CDF3A9224EB179'
-                }
-
-                # check printer status
-                attempt = 5
-                response = requests.get(baseurl+'/connection', headers=headers)
-                if response.status_code == 200:
-                    if response.json()['current']['state'] == "Operational":
-                        attempt = 0
-                
-                # connect to printer
-                while attempt > 0:
-                    data = {
-                        "command": "connect",
-                        "port": "/tmp/printer"
-                    }
-                    response = requests.post(baseurl+'/connection', json=data, headers=headers)
-                    if response.status_code == 204:
-                        break
-                    attempt = attempt-1
-                    if attempt == 0:
-                        raise Exception("PrinterConnectionError")
-
-                # send command
-                data = {
-                    "command": data
-                }
-                response = requests.post(baseurl+'/printer/command', json=data, headers=headers)
-                if response.status_code == 204:
-                    return
-                raise Exception("PrinterCommandError")
+            self.command_handle(gcode)
 
     # e = chess_engine_helper, m = main/kingslayer/
     def move(self, e, m, best_move):
@@ -200,9 +123,139 @@ class RobotApiHandler:
                 moves.append(RobotMove(RobotTask.Take, x_s, y_s))
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
 
-        self.robot_handler.move(moves)
+        self.move_handle(moves)
+
+
+class RobotHandler:
+
+    def __init__(self):
+        self.robot = Robot()
     
+    def move(self, moves):
+        self.robot.move(moves)
+
+
+class RobotApiCommand(Enum):
+    Command = "Command"
+
+
+class RobotApiHandler:
+
+    def __init__(self, config=None):
+        
+        if not config:
+            with open('app.yaml', 'r') as file:
+                config = yaml.safe_load(file)
+
+        self.klipperApiHandler = KlipperApiHandler(config)
+
+        if config['broker'] and config['broker']['enabled']:
+            self.conf = config['broker']
+            client = mqtt.Client()
+            client.on_connect = self.on_connect
+            client.on_message = self.on_message
+            client.connect(self.conf['url'], self.conf['port'], 60)
+            client.loop_start()
+
+            self.client = client
+
+
+    def command(self, command, data=None):
+        if command == RobotApiCommand.Command:
+            self.klipperApiHandler.request(data)
+            
+    def on_connect(self, client, userdata, flags, rc):
+        client.subscribe(self.conf['topic']['request'])
+
+    def on_message(self, client, userdata, msg):
+        print(f"Topic: {msg.topic}\nMessage: {msg.payload.decode()}")
+
+
+class KlipperApiHandler:
+    
+    def __init__(self, config: dict):
+        
+        self.requests = []
+        self.key = 1
+        self.lock = False
+        self.r = ''
+
+        # Create a Unix domain socket
+        client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.client_socket = client_socket
+
+        # Connect to the server
+        client_socket.connect(config['klipper']['socket'])
+
+        # request, response thread
+        queue_thread = threading.Thread(target=self.request_handle)
+        queue_thread.start()
+        response_thread = threading.Thread(target=self.response_handle)
+        response_thread.start()
+
+    def request(self, command: str):
+        self.requests.append({
+            "k": self.key,
+            "c": command
+        })
+        self.key = self.key + 1
+        if self.key == 10000000:
+            self.key = 1
+
+    def request_handle(self):
+        client_socket = self.client_socket
+        
+        self.subscribe_output()
+
+        while True:
+            time.sleep(1)
+            if self.lock or len(self.requests) == 0:
+                continue
+            try:
+                self.r = self.requests[0]
+                self.run_code()
+                self.requests.pop(0)
+                self.lock = True
+            except Exception as e:
+                logging.getLogger(__name__).exception("request_error: %s", e)
+
+
+    def response_handle(self):
+        client_socket = self.client_socket
+        
+        while True:
+            time.sleep(1)
+            data = client_socket.recv(1024)
+            if not data:
+                logging.getLogger(__name__).error("socket_closed")
+            else:
+                msg = data.decode()
+                print(f"Response: {msg}")
+                print(f"Request: {self.r}")
+                if 'G1' in self.r or 'SERVO' in self.r:
+                    if 'toolhead:move' in msg:
+                        self.lock = False
+                else:
+                    if 'result' in msg:
+                        self.lock = False
+                
+        
+    def run_code(self):
+        r = self.r
+        message = '{"id":%d,"method":"gcode/script","params":{"script":"%s"}}' % (r['k'], r['c'])
+        self.client_socket.sendall(("%s\x03" % (message)).encode())
+
+    def subscribe_output(self):
+        message = '{"id":%d,"method":"gcode/subscribe_output","params":{"response_template":{"key":%d}}}' % (1, 1)
+        self.client_socket.sendall(("%s\x03" % (message)).encode())
 
 # r = RobotApiHandler()
-# r.command(command=RobotApiCommand.Command, data="G28")
-# r.command(command=RobotApiCommand.Command, data="G1 X20")
+# r.command(RobotApiCommand.Command, "G28")
+# r.command(RobotApiCommand.Command, "G1 Y360 Z0 F5000")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=90")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=120")
+# r.command(RobotApiCommand.Command, "G1 Y300 Z0 F5000")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=90")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=120")
+# r.command(RobotApiCommand.Command, "G28")
+# r.command(RobotApiCommand.Command, "M84")

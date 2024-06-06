@@ -1,3 +1,5 @@
 ultralytics
 python-chess
 opencv-python
+paho-mqtt
+pyyaml

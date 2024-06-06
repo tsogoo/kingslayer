@@ -1,0 +1,10 @@
+broker:
+  enabled: False
+  url: 127.0.0.1
+  port: 1883
+  topic:
+    request: api/request
+    response: api/response
+
+klipper:
+  socket: /tmp/klippy_uds
