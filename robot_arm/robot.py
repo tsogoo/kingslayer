@@ -1,12 +1,11 @@
 from enum import Enum
-import requests
 import socket
-import os
-import logging
 import time
 import paho.mqtt.client as mqtt
 import yaml
 import threading
+import json
+import os
 
 class RobotTask(Enum):
     Take = "Take"   # take figure from board
@@ -17,7 +16,7 @@ class RobotTask(Enum):
 
 class RobotMove:
     
-    def __init__(self, task=RobotTask.Move, x=0, y=0, z=40, speed=10000, up_down_speed=5000):
+    def __init__(self, task=RobotTask.Move, x=0, y=0, z=40, speed=10000, up_down_speed=2000):
         self.task = task    # move, eat
         self.x = x
         self.y = y
@@ -27,10 +26,22 @@ class RobotMove:
 
 class Robot:
 
+    TAKE_HEIGHT = -30
+    TRAVEL_HEIGHT = 20
+
+    CMD_SERVO_FMT = "SET_SERVO servo=servo_arm angle={}"
+    
+    TAKE_ANGLE = 125
+    RELEASE_ANGLE = 80
+
+    X_OFFSET = -184
+    Y_OFFSET = 164
+
     def __init__(self):
         self.robotApiHandler = RobotApiHandler()
 
     def move_handle(self, moves):
+        self.commands_handle(self.before_move_code())
         for move in moves:
             gcodes = self.move_code(move)
             self.commands_handle(gcodes)
@@ -46,25 +57,31 @@ class Robot:
             move.y = 0
         
         gcode = []
-        gcode.append("G1 Y350 Z{} F{}".format(move.z, move.up_down_speed))
+        gcode.append("G1 Z{} F{}".format(Robot.TRAVEL_HEIGHT, move.up_down_speed))
         gcode.append("G1 X{} Y{} F{}".format(move.x, move.y, move.speed))
-        
-        gcode.append("G1 Z-20 F{}".format(move.up_down_speed))   # take or place height
+        gcode.append("G1 Z{} F{}".format(Robot.TAKE_HEIGHT, move.up_down_speed))   # take or place height
         if move.task in (RobotTask.Place, RobotTask.Out):
-            gcode.append("SET_SERVO servo=servo_arm angle=0")
+            gcode.append(Robot.CMD_SERVO_FMT.format(Robot.RELEASE_ANGLE))
         else:
-            gcode.append("SET_SERVO servo=servo_arm angle=120")
-        gcode.append("G1 Z{} F{}".format(move.z, move.up_down_speed))
+            gcode.append(Robot.CMD_SERVO_FMT.format(Robot.TAKE_ANGLE))
+        gcode.append("G1 Z{} F{}".format(Robot.TRAVEL_HEIGHT, move.up_down_speed))
 
         return gcode
 
     def after_move_code(self):
-        gcode = []
-        gcode.append("G1 X0 Y250 Z40")
-        return gcode
+        # home and disable motors
+        return [
+            "G1 X{}".format(0-Robot.X_OFFSET),
+            "G28",
+            "M84",
+            "SET_SERVO servo=servo_arm width=0"
+        ]
     
-    def startup_code(self):
-        return ["G28"]
+    def before_move_code(self):
+        return [
+            "G28",
+            "SET_GCODE_OFFSET X={} Y={}".format(Robot.X_OFFSET, Robot.Y_OFFSET) # can execute before move
+        ]
     
     def command_handle(self, gcode):
         self.robotApiHandler.command(RobotApiCommand.Command, gcode)
@@ -141,26 +158,30 @@ class RobotApiCommand(Enum):
 
 class RobotApiHandler:
 
-    def __init__(self, config=None):
+    def __init__(self, config: dict=None):
         
         if not config:
-            with open('app.yaml', 'r') as file:
+            current_file_path = os.path.abspath(__file__)
+            parent_directory = os.path.dirname(current_file_path)
+            with open(os.path.join(parent_directory, 'app.yaml'), 'r') as file:
                 config = yaml.safe_load(file)
 
-        self.klipperApiHandler = KlipperApiHandler(config)
+        self.klipperApiHandler = KlipperApiHandler(
+            config=config,
+            on_response=self.on_response
+        )
 
         if config['broker'] and config['broker']['enabled']:
             self.conf = config['broker']
             client = mqtt.Client()
+            self.client = client
             client.on_connect = self.on_connect
             client.on_message = self.on_message
             client.connect(self.conf['url'], self.conf['port'], 60)
             client.loop_start()
 
-            self.client = client
 
-
-    def command(self, command, data=None):
+    def command(self, command, data: str=None):
         if command == RobotApiCommand.Command:
             self.klipperApiHandler.request(data)
             
@@ -168,30 +189,44 @@ class RobotApiHandler:
         client.subscribe(self.conf['topic']['request'])
 
     def on_message(self, client, userdata, msg):
-        print(f"Topic: {msg.topic}\nMessage: {msg.payload.decode()}")
+        self.command(RobotApiCommand.Command, msg.payload.decode())
+
+    def on_response(self, msg: str):
+        if self.client:
+            self.client.publish(topic=self.conf['topic']['response'], payload=msg)
 
 
 class KlipperApiHandler:
     
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, on_response=None):
         
+        self.config = config
         self.requests = []
         self.key = 1
-        self.lock = False
+        self.lock = False   # prevent request to send without previous completed
         self.r = ''
-
-        # Create a Unix domain socket
-        client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.client_socket = client_socket
-
-        # Connect to the server
-        client_socket.connect(config['klipper']['socket'])
-
+        self.on_response = on_response
+        
         # request, response thread
-        queue_thread = threading.Thread(target=self.request_handle)
-        queue_thread.start()
-        response_thread = threading.Thread(target=self.response_handle)
-        response_thread.start()
+        self.request_thread = None
+        self.response_thread = None
+
+        self._connect(immediate=True)
+
+    def _connect(self, immediate:bool=False):
+        try:
+            if not immediate:
+                time.sleep(5)
+            client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.client_socket = client_socket
+            self.client_socket.connect(self.config['klipper']['socket'])
+            self.lock = False
+            self.subscribe_output()
+        except Exception as e:
+            pass
+
+    def _get_socket(self):
+        return self.client_socket
 
     def request(self, command: str):
         self.requests.append({
@@ -201,14 +236,20 @@ class KlipperApiHandler:
         self.key = self.key + 1
         if self.key == 10000000:
             self.key = 1
+        
+        if not self.request_thread:
+            request_thread = threading.Thread(target=self.request_handle)
+            self.request_thread = request_thread
+            request_thread.start()
+        if not self.response_thread:
+            response_thread = threading.Thread(target=self.response_handle)
+            self.response_thread = response_thread
+            response_thread.start()
 
     def request_handle(self):
-        client_socket = self.client_socket
-        
-        self.subscribe_output()
 
         while True:
-            time.sleep(1)
+            time.sleep(0.1)
             if self.lock or len(self.requests) == 0:
                 continue
             try:
@@ -216,46 +257,87 @@ class KlipperApiHandler:
                 self.run_code()
                 self.requests.pop(0)
                 self.lock = True
+            except OSError as e:
+                self._connect()
             except Exception as e:
-                logging.getLogger(__name__).exception("request_error: %s", e)
+                pass
 
 
     def response_handle(self):
-        client_socket = self.client_socket
-        
         while True:
-            time.sleep(1)
-            data = client_socket.recv(1024)
-            if not data:
-                logging.getLogger(__name__).error("socket_closed")
-            else:
-                msg = data.decode()
-                print(f"Response: {msg}")
-                print(f"Request: {self.r}")
-                if 'G1' in self.r or 'SERVO' in self.r:
-                    if 'toolhead:move' in msg:
-                        self.lock = False
+            time.sleep(0.1)
+            
+            try:
+                data = self._get_socket().recv(1024)
+                if data:
+                    responses = data.split(b'\x03')
+                    for response in responses:
+                        self._response_handle(response)
                 else:
-                    if 'result' in msg:
-                        self.lock = False
-                
+                    self._connect()
+            except Exception as e:
+                pass
+
+    def _response_handle(self, response):
+        msg = response.decode()
         
+        try:
+            res = json.loads(msg)
+        except ValueError as e:
+            res = {}
+
+        if 'error' in res:
+            msg = res['error']['message']
+            self.lock = False
+        else:
+            if 'G1' in self.r or 'SERVO' in self.r:
+                if 'toolhead:move' in msg:
+                    self.lock = False
+            else:
+                if 'result' in res:
+                    self.lock = False
+
+        if not self.lock and self.on_response:
+            self.on_response(msg) 
+
+    
+    fmt_c = '''{
+        "id":%d,
+        "method":"gcode/script",
+        "params":{
+            "script":"%s"
+        }
+    }'''
     def run_code(self):
         r = self.r
-        message = '{"id":%d,"method":"gcode/script","params":{"script":"%s"}}' % (r['k'], r['c'])
+        message = KlipperApiHandler.fmt_c % (r['k'], r['c'])
         self.client_socket.sendall(("%s\x03" % (message)).encode())
-
+    
+    fmt_o = '''{
+        "id":%d,
+        "method":
+        "gcode/subscribe_output",
+        "params":{
+            "response_template":{"key":%d}
+        }
+    }'''
     def subscribe_output(self):
-        message = '{"id":%d,"method":"gcode/subscribe_output","params":{"response_template":{"key":%d}}}' % (1, 1)
+        message = KlipperApiHandler.fmt_o % (1, 1)
         self.client_socket.sendall(("%s\x03" % (message)).encode())
 
+# sample
 # r = RobotApiHandler()
 # r.command(RobotApiCommand.Command, "G28")
-# r.command(RobotApiCommand.Command, "G1 Y360 Z0 F5000")
-# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=90")
-# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=120")
-# r.command(RobotApiCommand.Command, "G1 Y300 Z0 F5000")
-# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=90")
-# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=120")
+# r.command(RobotApiCommand.Command, "G1 Z20 F5000")
+# r.command(RobotApiCommand.Command, "G1 Y360 F5000")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=80")
+# r.command(RobotApiCommand.Command, "G1 Z-100 F5000")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=125")
+# r.command(RobotApiCommand.Command, "G1 Z20 F5000")
+# r.command(RobotApiCommand.Command, "G1 Y300 F5000")
+# r.command(RobotApiCommand.Command, "G1 Z-100 F5000")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=80")
+# r.command(RobotApiCommand.Command, "G1 Z20 F5000")
+# r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=125")
 # r.command(RobotApiCommand.Command, "G28")
 # r.command(RobotApiCommand.Command, "M84")

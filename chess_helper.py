@@ -72,3 +72,37 @@ def main():
 
 if __name__ == "__main__":
     main()
+         
+# class Test:
+
+#     def __init__(self):
+        
+#         from engine.helper import ChessEngineHelper
+#         from robot_arm.robot import Robot
+#         self.e = ChessEngineHelper()
+#         self.robot = Robot()
+
+#     def get_figure_actual_position(self, x, y, is_occupied=False):
+#         # new board square height, width = 370/8 = 46.25
+#         # x, y => figure's square coordinate on board, is_occupied => whether square is occupied
+#         if is_occupied:
+#             # TODO get detected location
+#             return x*46+23, y*46+23
+#         # center of square
+#         return x*46+23, y*46+23
+    
+#     def test(self):
+#         e = self.e
+#         e.initialize_board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+#         while not e.board.is_game_over():
+#             print(e.board)
+#             m = e.get_best_move()
+#             self.robot.move(e, self, m)
+#             e.move(m)
+#             print(e.board)
+#             p = input("type_move/e7e3/:")
+#             e.move(p)
+#             print(e.board)
+
+# t = Test()
+# t.test()
