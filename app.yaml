@@ -1,0 +1,27 @@
+robot:
+  take_z: -70
+  travel_z: 20
+  take_angle: 125
+  release_angle: 90
+  offset_x: -184
+  offset_y: 210
+  in_x: 380
+  in_y: 0
+  out_x: 380
+  out_y: 50
+  xy_speed: 15000
+  z_speed: 6000
+  timer_x: 450
+  timer_y: 140
+  timer_z: -50
+
+  broker:
+    enabled: True
+    url: 127.0.0.1
+    port: 1883
+    topic:
+      request: api/request
+      response: api/response
+
+  klipper:
+    socket: /tmp/klippy_uds

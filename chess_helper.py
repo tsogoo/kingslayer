@@ -72,15 +72,24 @@ def main():
 
 if __name__ == "__main__":
     main()
-         
+
+# example         
 # class Test:
 
 #     def __init__(self):
         
+#         import os
+#         import yaml
+
+#         current_file_path = os.path.abspath(__file__)
+#         parent_directory = os.path.dirname(current_file_path)
+#         with open(os.path.join(parent_directory, 'app.yaml'), 'r') as file:
+#             config = yaml.safe_load(file)
+
 #         from engine.helper import ChessEngineHelper
 #         from robot_arm.robot import Robot
 #         self.e = ChessEngineHelper()
-#         self.robot = Robot()
+#         self.robot = Robot(config=config['robot'])
 
 #     def get_figure_actual_position(self, x, y, is_occupied=False):
 #         # new board square height, width = 370/8 = 46.25

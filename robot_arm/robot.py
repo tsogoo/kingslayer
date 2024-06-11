@@ -16,62 +16,55 @@ class RobotTask(Enum):
 
 class RobotMove:
     
-    def __init__(self, task=RobotTask.Move, x=0, y=0, z=40, speed=10000, up_down_speed=2000):
+    def __init__(self, task=RobotTask.Move, x=0, y=0, z=0, xy_speed=0, z_speed=0):
         self.task = task    # move, eat
         self.x = x
         self.y = y
         self.z = z
-        self.speed = speed
-        self.up_down_speed = up_down_speed
+        self.xy_speed = xy_speed
+        self.z_speed = z_speed
 
 class Robot:
 
-    TAKE_HEIGHT = -30
-    TRAVEL_HEIGHT = 20
-
     CMD_SERVO_FMT = "SET_SERVO servo=servo_arm angle={}"
-    
-    TAKE_ANGLE = 125
-    RELEASE_ANGLE = 80
 
-    X_OFFSET = -184
-    Y_OFFSET = 164
-
-    def __init__(self):
-        self.robotApiHandler = RobotApiHandler()
+    def __init__(self, config):
+        self.config = config
+        self.robotApiHandler = RobotApiHandler(config=config)
 
     def move_handle(self, moves):
         self.commands_handle(self.before_move_code())
         for move in moves:
             gcodes = self.move_code(move)
             self.commands_handle(gcodes)
+        self.commands_handle(self.timer_code())
         self.commands_handle(self.after_move_code())
 
     def move_code(self, move):
         # Queen position
         if move.task == RobotTask.In:
-            move.x = 380
-            move.y = 200
+            move.x = self.config['in_x']
+            move.y = self.config['in_y']
         if move.task == RobotTask.Out:
-            move.x = 380
-            move.y = 0
+            move.x = self.config['out_x']
+            move.y = self.config['out_y']
         
         gcode = []
-        gcode.append("G1 Z{} F{}".format(Robot.TRAVEL_HEIGHT, move.up_down_speed))
-        gcode.append("G1 X{} Y{} F{}".format(move.x, move.y, move.speed))
-        gcode.append("G1 Z{} F{}".format(Robot.TAKE_HEIGHT, move.up_down_speed))   # take or place height
+        gcode.append("G1 Z{} F{}".format(self.config['travel_z'], self.xy_speed(move)))
+        gcode.append("G1 X{} Y{} F{}".format(move.x, move.y, self.xy_speed(move)))
+        gcode.append("G1 Z{} F{}".format(self.config['take_z'], self.z_speed(move)))
         if move.task in (RobotTask.Place, RobotTask.Out):
-            gcode.append(Robot.CMD_SERVO_FMT.format(Robot.RELEASE_ANGLE))
+            gcode.append(Robot.CMD_SERVO_FMT.format(self.config['release_angle']))
         else:
-            gcode.append(Robot.CMD_SERVO_FMT.format(Robot.TAKE_ANGLE))
-        gcode.append("G1 Z{} F{}".format(Robot.TRAVEL_HEIGHT, move.up_down_speed))
+            gcode.append(Robot.CMD_SERVO_FMT.format(self.config['take_angle']))
+        gcode.append("G1 Z{} F{}".format(self.config['travel_z'], self.z_speed(move)))
 
         return gcode
 
     def after_move_code(self):
         # home and disable motors
         return [
-            "G1 X{}".format(0-Robot.X_OFFSET),
+            "G1 X{}".format(0-self.config['offset_x']),
             "G28",
             "M84",
             "SET_SERVO servo=servo_arm width=0"
@@ -80,7 +73,18 @@ class Robot:
     def before_move_code(self):
         return [
             "G28",
-            "SET_GCODE_OFFSET X={} Y={}".format(Robot.X_OFFSET, Robot.Y_OFFSET) # can execute before move
+            "SET_GCODE_OFFSET X={} Y={}".format(self.config['offset_x'], self.config['offset_y']), # can execute before move
+            Robot.CMD_SERVO_FMT.format(self.config['release_angle'])
+        ]
+    
+    def timer_code(self):
+        # push down timer
+        return [
+            "G1 Z{} F{}".format(self.config['travel_z'], self.config['z_speed']),
+            "G1 X{} Y{} F{}".format(self.config['timer_x'], self.config['timer_y'], self.config['xy_speed']),
+            Robot.CMD_SERVO_FMT.format(self.config['take_angle']),
+            "G1 Z{} F{}".format(self.config['take_z'], self.config['z_speed']),
+            "G1 Z{} F{}".format(self.config['travel_z'], self.config['z_speed']),
         ]
     
     def command_handle(self, gcode):
@@ -142,6 +146,11 @@ class Robot:
 
         self.move_handle(moves)
 
+    def xy_speed(self, move: RobotMove):
+        return move.xy_speed if move.xy_speed > 0 else self.config['xy_speed']
+    
+    def z_speed(self, move: RobotMove):
+        return move.z_speed if move.z_speed > 0 else self.config['z_speed']
 
 class RobotHandler:
 
@@ -159,19 +168,13 @@ class RobotApiCommand(Enum):
 class RobotApiHandler:
 
     def __init__(self, config: dict=None):
-        
-        if not config:
-            current_file_path = os.path.abspath(__file__)
-            parent_directory = os.path.dirname(current_file_path)
-            with open(os.path.join(parent_directory, 'app.yaml'), 'r') as file:
-                config = yaml.safe_load(file)
 
         self.klipperApiHandler = KlipperApiHandler(
             config=config,
             on_response=self.on_response
         )
 
-        if config['broker'] and config['broker']['enabled']:
+        if 'broker' in config and 'enabled' in config['broker'] and config['broker']['enabled']:
             self.conf = config['broker']
             client = mqtt.Client()
             self.client = client
