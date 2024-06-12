@@ -7,6 +7,17 @@ import threading
 import json
 import os
 
+def get_config(conf:dict, config:str):
+    confs = config.split(":")
+    v = conf
+    if len(confs) > 0:
+        for conf in confs:
+            if conf in v:
+                v = v[conf]
+            else:
+                return None
+    return v
+
 class RobotTask(Enum):
     Take = "Take"   # take figure from board
     Place = "Place" # place figure on board
@@ -29,7 +40,7 @@ class Robot:
     CMD_SERVO_FMT = "SET_SERVO servo=servo_arm angle={}"
 
     def __init__(self, config):
-        self.config = config
+        self.config = get_config(config, 'robot')
         self.robotApiHandler = RobotApiHandler(config=config)
 
     def move_handle(self, moves):
@@ -43,28 +54,54 @@ class Robot:
     def move_code(self, move):
         # Queen position
         if move.task == RobotTask.In:
-            move.x = self.config['in_x']
-            move.y = self.config['in_y']
+            move.x = get_config(self.config, 'in:x')
+            move.y = get_config(self.config, 'in:y')
         if move.task == RobotTask.Out:
-            move.x = self.config['out_x']
-            move.y = self.config['out_y']
+            move.x = get_config(self.config, 'out:x')
+            move.y = get_config(self.config, 'out:y')
         
+        is_take = move.task not in (RobotTask.Place, RobotTask.Out)
         gcode = []
-        gcode.append("G1 Z{} F{}".format(self.config['travel_z'], self.xy_speed(move)))
-        gcode.append("G1 X{} Y{} F{}".format(move.x, move.y, self.xy_speed(move)))
-        gcode.append("G1 Z{} F{}".format(self.config['take_z'], self.z_speed(move)))
-        if move.task in (RobotTask.Place, RobotTask.Out):
-            gcode.append(Robot.CMD_SERVO_FMT.format(self.config['release_angle']))
+        gcode.append(
+            "G1 Z{} F{}".format(
+                get_config(self.config, 'board:safe_z'), self.z_speed(move)
+            )
+        )
+        gcode.append(
+            "G1 X{} Y{} F{}".format(
+                move.x, move.y, self.xy_speed(move)
+            )
+        )
+        gcode.append(
+            "G1 Z{} F{}".format(
+                get_config(self.config, 'board:z'), self.z_speed(move, is_take)
+            )
+        )
+        if not is_take:
+            gcode.append(
+                Robot.CMD_SERVO_FMT.format(
+                    get_config(self.config, 'gripper:release_angle')
+                )
+            )
         else:
-            gcode.append(Robot.CMD_SERVO_FMT.format(self.config['take_angle']))
-        gcode.append("G1 Z{} F{}".format(self.config['travel_z'], self.z_speed(move)))
+            gcode.append(
+                Robot.CMD_SERVO_FMT.format(
+                    get_config(self.config, 'gripper:take_angle')
+                )
+            )
+        gcode.append(
+            "G1 Z{} F{}".format(
+                get_config(self.config, 'board:safe_z'),
+                self.z_speed(move, not is_take)
+            )
+        )
 
         return gcode
 
     def after_move_code(self):
         # home and disable motors
         return [
-            "G1 X{}".format(0-self.config['offset_x']),
+            "G1 X{}".format(0 - get_config(self.config, 'board:x')),
             "G28",
             "M84",
             "SET_SERVO servo=servo_arm width=0"
@@ -73,18 +110,38 @@ class Robot:
     def before_move_code(self):
         return [
             "G28",
-            "SET_GCODE_OFFSET X={} Y={}".format(self.config['offset_x'], self.config['offset_y']), # can execute before move
-            Robot.CMD_SERVO_FMT.format(self.config['release_angle'])
+            "SET_GCODE_OFFSET X={} Y={}".format(
+                get_config(self.config, 'board:x'),
+                get_config(self.config, 'board:y')
+            ), # can execute before move
+            Robot.CMD_SERVO_FMT.format(
+                get_config(self.config, 'gripper:release_angle')
+            )
         ]
     
     def timer_code(self):
         # push down timer
         return [
-            "G1 Z{} F{}".format(self.config['travel_z'], self.config['z_speed']),
-            "G1 X{} Y{} F{}".format(self.config['timer_x'], self.config['timer_y'], self.config['xy_speed']),
-            Robot.CMD_SERVO_FMT.format(self.config['take_angle']),
-            "G1 Z{} F{}".format(self.config['take_z'], self.config['z_speed']),
-            "G1 Z{} F{}".format(self.config['travel_z'], self.config['z_speed']),
+            "G1 Z{} F{}".format(
+                get_config(self.config, 'board:safe_z'),
+                get_config(self.config, 'speed:z_slow')
+            ),
+            Robot.CMD_SERVO_FMT.format(
+                get_config(self.config, 'gripper:take_angle')
+            ),
+            "G1 X{} Y{} F{}".format(
+                get_config(self.config, 'timer:x'),
+                get_config(self.config, 'timer:y'),
+                self.xy_speed()
+            ),
+            "G1 Z{} F{}".format(
+                get_config(self.config, 'board:z'),
+                self.z_speed()
+            ),
+            "G1 Z{} F{}".format(
+                get_config(self.config, 'board:safe_z'),
+                self.z_speed()
+            ),
         ]
     
     def command_handle(self, gcode):
@@ -146,11 +203,20 @@ class Robot:
 
         self.move_handle(moves)
 
-    def xy_speed(self, move: RobotMove):
-        return move.xy_speed if move.xy_speed > 0 else self.config['xy_speed']
+    def xy_speed(self, move: RobotMove=None):
+        if move and move.xy_speed > 0:
+            return move.xy_speed
+        return get_config(self.config, 'speed:xy')
     
-    def z_speed(self, move: RobotMove):
-        return move.z_speed if move.z_speed > 0 else self.config['z_speed']
+    def z_speed(self, move: RobotMove=None, is_slow:bool=False):
+        if is_slow:
+            return get_config(self.config, 'speed:z_slow')
+        else:
+            if move and move.z_speed > 0:
+                return move.z_speed
+            return get_config(self.config, 'speed:z')
+        
+    
 
 class RobotHandler:
 
@@ -170,17 +236,17 @@ class RobotApiHandler:
     def __init__(self, config: dict=None):
 
         self.klipperApiHandler = KlipperApiHandler(
-            config=config,
+            config=get_config(config, 'klipper'),
             on_response=self.on_response
         )
 
-        if 'broker' in config and 'enabled' in config['broker'] and config['broker']['enabled']:
-            self.conf = config['broker']
+        if get_config(config, 'broker:enabled'):
+            self.config = get_config(config, 'broker')
             client = mqtt.Client()
             self.client = client
             client.on_connect = self.on_connect
             client.on_message = self.on_message
-            client.connect(self.conf['url'], self.conf['port'], 60)
+            client.connect(get_config(self.config, 'url'), get_config(self.config, 'port'), 60)
             client.loop_start()
 
 
@@ -189,14 +255,14 @@ class RobotApiHandler:
             self.klipperApiHandler.request(data)
             
     def on_connect(self, client, userdata, flags, rc):
-        client.subscribe(self.conf['topic']['request'])
+        client.subscribe(get_config(self.config, 'topic:request'))
 
     def on_message(self, client, userdata, msg):
         self.command(RobotApiCommand.Command, msg.payload.decode())
 
     def on_response(self, msg: str):
         if self.client:
-            self.client.publish(topic=self.conf['topic']['response'], payload=msg)
+            self.client.publish(topic=get_config(self.config, 'topic:response'), payload=msg)
 
 
 class KlipperApiHandler:
@@ -222,7 +288,7 @@ class KlipperApiHandler:
                 time.sleep(5)
             client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             self.client_socket = client_socket
-            self.client_socket.connect(self.config['klipper']['socket'])
+            self.client_socket.connect(get_config(self.config, 'socket'))
             self.lock = False
             self.subscribe_output()
         except Exception as e:
@@ -301,7 +367,7 @@ class KlipperApiHandler:
                     self.lock = False
 
         if not self.lock and self.on_response:
-            self.on_response(msg) 
+            self.on_response(msg)
 
     
     fmt_c = '''{
