@@ -1,26 +1,27 @@
 robot:
   gripper:
-    take_angle: 125
+    take_angle: 140
     release_angle: 85
   speed:
-    xy: 12000
-    z: 5000
-    z_slow: 1200
+    xy: 15000
+    z: 8000
+    z_slow: 4000
   timer:
     x: 450
     y: 140
-    z: -48
+    z: -60
+    y_b: 220
   board:
     x: -184
     y: 210
-    z: -65
+    z: -100
     safe_z: 20
     square_size: 46
   out:
-    x: 380
+    x: 400
     y: 50
   in:
-    x: 380
+    x: 400
     y: 0
 # control robot via mqtt
 broker:

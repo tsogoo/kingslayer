@@ -43,12 +43,12 @@ class Robot:
         self.config = get_config(config, 'robot')
         self.robotApiHandler = RobotApiHandler(config=config)
 
-    def move_handle(self, moves):
+    def move_handle(self, moves, turn):
         self.commands_handle(self.before_move_code())
         for move in moves:
             gcodes = self.move_code(move)
             self.commands_handle(gcodes)
-        self.commands_handle(self.timer_code())
+        self.commands_handle(self.timer_code(turn))
         self.commands_handle(self.after_move_code())
 
     def move_code(self, move):
@@ -119,7 +119,8 @@ class Robot:
             )
         ]
     
-    def timer_code(self):
+    def timer_code(self, turn):
+        print(turn)
         # push down timer
         return [
             "G1 Z{} F{}".format(
@@ -131,11 +132,11 @@ class Robot:
             ),
             "G1 X{} Y{} F{}".format(
                 get_config(self.config, 'timer:x'),
-                get_config(self.config, 'timer:y'),
+                get_config(self.config, 'timer:y' if turn else 'timer:y_b'),
                 self.xy_speed()
             ),
             "G1 Z{} F{}".format(
-                get_config(self.config, 'board:z'),
+                get_config(self.config, 'timer:z'),
                 self.z_speed()
             ),
             "G1 Z{} F{}".format(
@@ -152,7 +153,7 @@ class Robot:
             self.command_handle(gcode)
 
     # e = chess_engine_helper, m = main/kingslayer/
-    def move(self, e, m, best_move):
+    def move(self, e, m, best_move, turn):
 
         moves = []
         
@@ -201,7 +202,7 @@ class Robot:
                 moves.append(RobotMove(RobotTask.Take, x_s, y_s))
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
 
-        self.move_handle(moves)
+        self.move_handle(moves, turn)
 
     def xy_speed(self, move: RobotMove=None):
         if move and move.xy_speed > 0:
