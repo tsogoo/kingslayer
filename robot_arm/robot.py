@@ -47,7 +47,6 @@ class Robot:
             y=0
         )
         for move in moves:
-            print(last_move.x, last_move.y)
             gcodes = self.move_code(move, last_move)
             last_move = move
             self.commands_handle(gcodes)
