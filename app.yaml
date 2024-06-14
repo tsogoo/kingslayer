@@ -41,3 +41,6 @@ broker:
 
 klipper:
   socket: /tmp/klippy_uds
+
+app:
+  sample: 1

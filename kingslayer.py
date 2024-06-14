@@ -7,6 +7,10 @@ from engine.helper import ChessEngineHelper
 import chess
 import json
 import time
+import os
+import yaml
+from robot_arm.robot import Robot
+from common.config import get_config
 
 from lib_contour import (
     get_enhanced_image,
@@ -76,7 +80,7 @@ def find_max_contour_area(contours):
 
 
 class Kingslayer:
-    def __init__(self, board_weight, chess_model_weight):
+    def __init__(self, board_weight, chess_model_weight):    
         self.models = []
         self.pts_square = []
         self.pts_perspective = []
@@ -89,6 +93,18 @@ class Kingslayer:
         # initialize chess engine helper
         self.chess_engine_helper = ChessEngineHelper()
         self.chess_engine_helper.initialize_board(None)
+
+        # conf
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), 'app.yaml'
+            ), 'r'
+        ) as file:
+            config = yaml.safe_load(file)
+
+        self.config = get_config(config, 'app')
+        self.robot = Robot(config=config)
+        # self.robot.move(self.chess_engine_helper, self, 'e7e5', self.chess_engine_helper.board.turn)
 
     def init_perspective_data(self, xoffset, yoffset, w, h, xend, yend, img):
         # crop image with x,y,w,h
