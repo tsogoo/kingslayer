@@ -1,12 +1,17 @@
 robot:
+  optimization:
+    enabled: true
+    ratio: 10:80:10
   gripper:
     take_angle: 140
-    release_angle: 85
+    release_angle: 80
   speed:
     xy: 15000
-    z: 8000
-    z_slow: 4000
+    xy_slow: 1000
+    z: 15000
+    z_slow: 1000
   timer:
+    enabled: true
     x: 450
     y: 140
     z: -60
@@ -16,10 +21,12 @@ robot:
     y: 210
     z: -100
     safe_z: 20
+    figure_z: -60
     square_size: 46
   out:
     x: 400
     y: 50
+    z: -60
   in:
     x: 400
     y: 0

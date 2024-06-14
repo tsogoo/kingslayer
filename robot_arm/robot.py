@@ -2,10 +2,9 @@ from enum import Enum
 import socket
 import time
 import paho.mqtt.client as mqtt
-import yaml
 import threading
 import json
-import os
+import math
 
 def get_config(conf:dict, config:str):
     confs = config.split(":")
@@ -20,20 +19,17 @@ def get_config(conf:dict, config:str):
 
 class RobotTask(Enum):
     Take = "Take"   # take figure from board
-    Place = "Place" # place figure on board
+    Place = "Place" # place figure on board opposite of take
     Out = "Out"     # same as place but place outside of board
     Move = "Move"   # default
     In = "In"       # same as take but take from outside of board
 
 class RobotMove:
     
-    def __init__(self, task=RobotTask.Move, x=0, y=0, z=0, xy_speed=0, z_speed=0):
+    def __init__(self, task=RobotTask.Move, x=0, y=0):
         self.task = task    # move, eat
         self.x = x
         self.y = y
-        self.z = z
-        self.xy_speed = xy_speed
-        self.z_speed = z_speed
 
 class Robot:
 
@@ -45,13 +41,27 @@ class Robot:
 
     def move_handle(self, moves, turn):
         self.commands_handle(self.before_move_code())
+        # initial point /offset calculated/
+        last_move = RobotMove(
+            x=0-get_config(self.config, 'board:x'),
+            y=0
+        )
         for move in moves:
-            gcodes = self.move_code(move)
+            print(last_move.x, last_move.y)
+            gcodes = self.move_code(move, last_move)
+            last_move = move
             self.commands_handle(gcodes)
-        self.commands_handle(self.timer_code(turn))
-        self.commands_handle(self.after_move_code())
+        if get_config(self.config, 'timer:enabled'):
+            move = RobotMove(
+                x=get_config(self.config, 'timer:x'), 
+                y=get_config(self.config, 'timer:y' if turn else 'timer:y_b')
+            )
+            t = last_move
+            last_move = move
+            self.commands_handle(self.timer_code(turn, move, t))
+        self.commands_handle(self.after_move_code(last_move))
 
-    def move_code(self, move):
+    def move_code(self, move:RobotMove, last_move:RobotMove=None):
         # Queen position
         if move.task == RobotTask.In:
             move.x = get_config(self.config, 'in:x')
@@ -62,21 +72,35 @@ class Robot:
         
         is_take = move.task not in (RobotTask.Place, RobotTask.Out)
         gcode = []
+        # go to safe z to travel if needed
         gcode.append(
             "G1 Z{} F{}".format(
-                get_config(self.config, 'board:safe_z'), self.z_speed(move)
+                get_config(self.config, 'board:safe_z'), self.z_speed()
             )
         )
-        gcode.append(
-            "G1 X{} Y{} F{}".format(
-                move.x, move.y, self.xy_speed(move)
+        
+        # optimize move
+        gcode.extend(self.optimize_move_xy(move, last_move))
+        
+        if move.task == RobotTask.Out:
+            # no need to be slowly, drop it from a height
+            gcode.append(
+                "G1 Z{} F{}".format(
+                    get_config(self.config, 'board:out_z'), self.z_speed()
+                )
             )
-        )
-        gcode.append(
-            "G1 Z{} F{}".format(
-                get_config(self.config, 'board:z'), self.z_speed(move, is_take)
+        else:
+            # speed up to a figure, then slow down if needed
+            gcode.append(
+                "G1 Z{} F{}".format(
+                    get_config(self.config, 'board:figure_z'), self.z_speed()
+                )
             )
-        )
+            gcode.append(
+                "G1 Z{} F{}".format(
+                    get_config(self.config, 'board:z'), self.z_speed(is_slow=is_take)
+                )
+            )
         if not is_take:
             gcode.append(
                 Robot.CMD_SERVO_FMT.format(
@@ -89,16 +113,23 @@ class Robot:
                     get_config(self.config, 'gripper:take_angle')
                 )
             )
+        if move.task == RobotTask.Place:
+            # slow down 
+            gcode.append(
+                "G1 Z{} F{}".format(
+                    get_config(self.config, 'board:figure_z'), self.z_speed(is_slow=True)
+                )
+            )
         gcode.append(
             "G1 Z{} F{}".format(
                 get_config(self.config, 'board:safe_z'),
-                self.z_speed(move, not is_take)
+                self.z_speed()
             )
         )
-
+        
         return gcode
 
-    def after_move_code(self):
+    def after_move_code(self, last_move:RobotMove=None):
         # home and disable motors
         return [
             "G1 X{}".format(0 - get_config(self.config, 'board:x')),
@@ -119,22 +150,20 @@ class Robot:
             )
         ]
     
-    def timer_code(self, turn):
-        print(turn)
+    def timer_code(self, turn:bool, move: RobotMove, last_move:RobotMove):
         # push down timer
-        return [
+        gcode = []
+        gcode.extend([
             "G1 Z{} F{}".format(
                 get_config(self.config, 'board:safe_z'),
                 get_config(self.config, 'speed:z_slow')
             ),
             Robot.CMD_SERVO_FMT.format(
                 get_config(self.config, 'gripper:take_angle')
-            ),
-            "G1 X{} Y{} F{}".format(
-                get_config(self.config, 'timer:x'),
-                get_config(self.config, 'timer:y' if turn else 'timer:y_b'),
-                self.xy_speed()
-            ),
+            )
+        ])
+        gcode.extend(self.optimize_move_xy(move, last_move))
+        gcode.extend([
             "G1 Z{} F{}".format(
                 get_config(self.config, 'timer:z'),
                 self.z_speed()
@@ -142,8 +171,9 @@ class Robot:
             "G1 Z{} F{}".format(
                 get_config(self.config, 'board:safe_z'),
                 self.z_speed()
-            ),
-        ]
+            )
+        ])
+        return gcode
     
     def command_handle(self, gcode):
         self.robotApiHandler.command(RobotApiCommand.Command, gcode)
@@ -204,20 +234,44 @@ class Robot:
 
         self.move_handle(moves, turn)
 
-    def xy_speed(self, move: RobotMove=None):
-        if move and move.xy_speed > 0:
-            return move.xy_speed
-        return get_config(self.config, 'speed:xy')
+    def xy_speed(self, is_slow:bool=False):
+        return get_config(self.config, 'speed:xy' if not is_slow else 'speed:xy_slow')
     
-    def z_speed(self, move: RobotMove=None, is_slow:bool=False):
+    def z_speed(self, is_slow:bool=False):
         if is_slow:
             return get_config(self.config, 'speed:z_slow')
         else:
-            if move and move.z_speed > 0:
-                return move.z_speed
             return get_config(self.config, 'speed:z')
         
-    
+    def optimize_move_xy(self, move:RobotMove, last_move:RobotMove=None):
+        gcode = []
+        # savlah hudulguun baga hiilgeh tseg oloh
+        # bolj ugvul garig urtaar ni x-n daguu hudulguhguigeer
+        #   garaa huraagaad oirhon bolgosni daraa x hudulguh
+        if get_config(self.config, 'optimization:enabled'):
+            y = move.y
+            x = move.x
+            _y = last_move.y
+            _x = last_move.x
+            delta_y = y - _y
+            delta_x = x - _x
+            ratio = (get_config(self.config, 'optimization:ratio')+'').split(':')
+            ratio_t = 0
+            for i, r in enumerate(ratio):
+                ratio_t += float(r)
+                gcode.append(
+                    "G1 X{} Y{} F{}".format(
+                        _x + delta_x*ratio_t/100, _y + delta_y*ratio_t/100, self.xy_speed(is_slow=i==2)
+                    )
+                )
+        else:
+            gcode.append(
+                "G1 X{} Y{} F{}".format(
+                    move.x, move.y, self.xy_speed()
+                )
+            )
+        return gcode
+
 
 class RobotHandler:
 
