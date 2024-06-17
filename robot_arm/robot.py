@@ -23,8 +23,6 @@ class RobotMove:
 
 class Robot:
 
-    CMD_SERVO_FMT = "SET_SERVO servo=servo_arm angle={}"
-
     def __init__(self, config):
         self.config = get_config(config, 'robot')
         self.robotApiHandler = RobotApiHandler(config=config)
@@ -90,18 +88,7 @@ class Robot:
                     get_config(self.config, 'board:z'), self.z_speed(is_slow=is_take)
                 )
             )
-        if not is_take:
-            gcode.append(
-                Robot.CMD_SERVO_FMT.format(
-                    get_config(self.config, 'gripper:release_angle')
-                )
-            )
-        else:
-            gcode.append(
-                Robot.CMD_SERVO_FMT.format(
-                    get_config(self.config, 'gripper:take_angle')
-                )
-            )
+        gcode.extend(self.gripper_code(is_take=is_take))
         if move.task == RobotTask.Place:
             # slow down 
             gcode.append(
@@ -120,37 +107,43 @@ class Robot:
 
     def after_move_code(self, last_move:RobotMove=None):
         # home and disable motors
-        return [
+        gcode = []
+        gcode.extend([
             "G1 X{}".format(0 - get_config(self.config, 'board:x')),
             "G28",
-            "M84",
-            "SET_SERVO servo=servo_arm width=0"
-        ]
+            "M84"
+        ])
+        gcode.extend(self.gripper_code(disable=True))
+        return gcode
     
     def before_move_code(self):
-        return [
+        gcode = []
+        gcode.extend([
             "G28",
             "SET_GCODE_OFFSET X={} Y={}".format(
                 get_config(self.config, 'board:x'),
                 get_config(self.config, 'board:y')
-            ), # can execute before move
-            Robot.CMD_SERVO_FMT.format(
-                get_config(self.config, 'gripper:release_angle')
-            )
-        ]
+            ) # can execute before move
+        ])
+        # check gripper working
+        if get_config(self.config, "gripper:check_phase"):
+            gcode.extend(self.gripper_code(is_take=False, should_delay=False, is_check=True))
+            gcode.append("G4 P50")
+            gcode.extend(self.gripper_code(is_take=True, should_delay=False, is_check=True))
+            gcode.append("G4 P50")
+        gcode.extend(self.gripper_code(is_take=False, should_delay=False))
+        return gcode
     
     def timer_code(self, turn:bool, move: RobotMove, last_move:RobotMove):
         # push down timer
         gcode = []
-        gcode.extend([
+        gcode.append(
             "G1 Z{} F{}".format(
                 get_config(self.config, 'board:safe_z'),
                 get_config(self.config, 'speed:z_slow')
-            ),
-            Robot.CMD_SERVO_FMT.format(
-                get_config(self.config, 'gripper:take_angle')
             )
-        ])
+        )
+        gcode.extend(self.gripper_code(is_take=True, should_delay=False))
         gcode.extend(self.optimize_move_xy(move, last_move))
         gcode.extend([
             "G1 Z{} F{}".format(
@@ -164,6 +157,38 @@ class Robot:
         ])
         return gcode
     
+    def gripper_code(self, is_take:bool=True, disable:bool=False, should_delay:bool=True, is_check:bool=False):
+        gcode = []
+        servo = "servo_arm"
+        if disable:
+            gcode.append("SET_SERVO servo={} width=0".format(servo))
+            return gcode
+
+        release_angle = get_config(self.config, 'gripper:release_angle')
+        take_angle = get_config(self.config, 'gripper:take_angle')
+        step = get_config(self.config, 'gripper:step')
+        delay = get_config(self.config, 'gripper:delay')
+        if not should_delay:
+            step = 1
+        if is_check:
+            release_angle = 0
+            take_angle = 180   
+        if not is_take:
+            start_angle = take_angle
+            end_angle = release_angle
+        else:
+            start_angle = release_angle
+            end_angle = take_angle
+        step_angle = (end_angle-start_angle)*1/step
+        for i in range(step):
+            start_angle = start_angle + step_angle
+            gcode.append(
+                "SET_SERVO servo={} angle={}".format(servo, start_angle)
+            )
+            if step > 1:
+                gcode.append("G4 P{}".format(delay))
+        return gcode
+
     def command_handle(self, gcode):
         self.robotApiHandler.command(RobotApiCommand.Command, gcode)
     
@@ -262,22 +287,13 @@ class Robot:
         return gcode
 
 
-class RobotHandler:
-
-    def __init__(self):
-        self.robot = Robot()
-    
-    def move(self, moves):
-        self.robot.move(moves)
-
-
 class RobotApiCommand(Enum):
     Command = "Command"
 
 
 class RobotApiHandler:
 
-    def __init__(self, config: dict=None):
+    def __init__(self, config:dict=None):
 
         self.klipperApiHandler = KlipperApiHandler(
             config=get_config(config, 'klipper'),
@@ -393,7 +409,6 @@ class KlipperApiHandler:
 
     def _response_handle(self, response):
         msg = response.decode()
-        
         try:
             res = json.loads(msg)
         except ValueError as e:

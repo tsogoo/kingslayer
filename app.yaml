@@ -3,8 +3,11 @@ robot:
     enabled: true
     ratio: 10:80:10
   gripper:
-    take_angle: 140
-    release_angle: 80
+    take_angle: 160
+    release_angle: 75
+    step: 5
+    delay: 50 #ms
+    check_phase: true
   speed:
     xy: 15000
     xy_slow: 1000
@@ -19,9 +22,9 @@ robot:
   board:
     x: -184
     y: 210
-    z: -100
+    z: -85
     safe_z: 20
-    figure_z: -60
+    figure_z: -50
     square_size: 46
   out:
     x: 400
