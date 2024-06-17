@@ -86,14 +86,6 @@ class Kingslayer:
         self.pts_perspective = []
         self.margin = 40
 
-        # initialize models yolo detector
-        self.board_model = YOLO(board_weight)
-        self.chess_model = YOLO(chess_model_weight)
-
-        # initialize chess engine helper
-        self.chess_engine_helper = ChessEngineHelper()
-        self.chess_engine_helper.initialize_board(None)
-
         # conf
         with open(
             os.path.join(
@@ -101,8 +93,16 @@ class Kingslayer:
             ), 'r'
         ) as file:
             config = yaml.safe_load(file)
-
         self.config = get_config(config, 'app')
+
+        # initialize models yolo detector
+        self.board_model = YOLO(board_weight)
+        self.chess_model = YOLO(chess_model_weight)
+
+        # initialize chess engine helper
+        self.chess_engine_helper = ChessEngineHelper(get_config(self.config, 'chess_engine'))
+        self.chess_engine_helper.initialize_board(None)
+
         self.robot = Robot(config=config)
         # self.robot.move(self.chess_engine_helper, self, 'e7e5', self.chess_engine_helper.board.turn)
 

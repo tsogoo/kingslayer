@@ -2,7 +2,7 @@ import chess
 import chess.engine
 import os
 import subprocess
-
+from common.config import get_config
 
 # square to x,y : 52/e7/ -> 6,4
 def square_to_position(square):
@@ -20,7 +20,9 @@ def get_move(player_move):
 class ChessEngineHelper:
 
     # prepare stockfish engine
-    def __init__(self):
+    def __init__(self, config:dict=None):
+
+        self.config = config
 
         # Download engine if not exists
         current_directory = os.path.dirname(os.path.realpath(__file__))
@@ -40,6 +42,10 @@ class ChessEngineHelper:
 
         # Initialize the Stockfish engine
         self.engine = chess.engine.SimpleEngine.popen_uci(engine_file_absolute_path)
+        if self.config:
+            self.engine.configure({'Skill Level':get_config(self.config, 'level')})
+        else:
+            self.engine.configure({'Skill Level':5})
         print("Engine started")
 
     # destroy it when finished using

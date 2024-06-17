@@ -46,4 +46,5 @@ klipper:
   socket: /tmp/klippy_uds
 
 app:
-  sample: 1
+  chess_engine:
+    level: 9
