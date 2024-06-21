@@ -259,9 +259,7 @@ class Robot:
         
     def optimize_move_xy(self, move:RobotMove, last_move:RobotMove=None):
         gcode = []
-        # savlah hudulguun baga hiilgeh tseg oloh
-        # bolj ugvul garig urtaar ni x-n daguu hudulguhguigeer
-        #   garaa huraagaad oirhon bolgosni daraa x hudulguh
+        # optimization:ratio=10:80:10 = 100% travel whole path like that(slow_move:fast_move:slow_move)
         if get_config(self.config, 'optimization:enabled'):
             y = move.y
             x = move.x
