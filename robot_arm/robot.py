@@ -322,6 +322,9 @@ class RobotApiHandler:
         if self.client:
             self.client.publish(topic=get_config(self.config, 'topic:response'), payload=msg)
 
+    def ready(self):
+        return self.klipperApiHandler.request_empty()
+
 
 class KlipperApiHandler:
     
@@ -450,6 +453,9 @@ class KlipperApiHandler:
     def subscribe_output(self):
         message = KlipperApiHandler.fmt_o % (1, 1)
         self.client_socket.sendall(("%s\x03" % (message)).encode())
+
+    def request_empty(self):
+        return len(self.requests) == 0
 
 # sample
 # r = RobotApiHandler()
