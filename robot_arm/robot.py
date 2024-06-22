@@ -455,7 +455,7 @@ class KlipperApiHandler:
         self.client_socket.sendall(("%s\x03" % (message)).encode())
 
     def request_empty(self):
-        return len(self.requests) == 0
+        return len(self.requests) == 0 and not self.lock
 
 # sample
 # r = RobotApiHandler()
