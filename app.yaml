@@ -1,7 +1,9 @@
 robot:
   optimization:
     enabled: true
-    ratio: 10:80:10
+    ratio: '10:80:10'
+    short_distance: 100
+    short_distance_ratio: '30:40:30' #[100]
   gripper:
     take_angle: 160
     release_angle: 75

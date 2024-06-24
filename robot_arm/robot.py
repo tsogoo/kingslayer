@@ -267,13 +267,16 @@ class Robot:
             _x = last_move.x
             delta_y = y - _y
             delta_x = x - _x
-            ratio = (get_config(self.config, 'optimization:ratio')+'').split(':')
+            is_short_distance = math.sqrt(delta_x**2+delta_y**2) < float(get_config(
+                self.config, 'optimization:short_distance'))
+            ratio = (get_config(self.config, 'optimization:'+
+                        ('short_distance_ratio' if is_short_distance else 'ratio'))).split(':')
             ratio_t = 0
             for i, r in enumerate(ratio):
                 ratio_t += float(r)
                 gcode.append(
                     "G1 X{} Y{} F{}".format(
-                        _x + delta_x*ratio_t/100, _y + delta_y*ratio_t/100, self.xy_speed(is_slow=i==2)
+                        _x + delta_x*ratio_t/100, _y + delta_y*ratio_t/100, self.xy_speed(is_slow=i%2==0)
                     )
                 )
         else:
