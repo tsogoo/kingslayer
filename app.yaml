@@ -5,29 +5,30 @@ robot:
     short_distance: 100
     short_distance_ratio: '30:40:30' #[100]
   gripper:
-    take_angle: 160
-    release_angle: 75
+    take_angle: 163
+    release_angle: 95
     step: 5
-    delay: 50 #ms
+    delay: 200 #ms
     check_phase: true
   speed:
     xy: 10000
     xy_slow: 1000
-    z: 15000
+    z: 8000
     z_slow: 1000
   timer:
     enabled: true
-    x: 450
-    y: 140
-    z: -60
+    x: -95
+    y: 90
+    z: -50
     y_b: 220
   board:
     x: -184
     y: 210
-    z: -85
+    z: -80
     safe_z: 20
     figure_z: -50
-    square_size: 46
+    square_size: 41
+    margin_size: 20
   out:
     x: 400
     y: 50
@@ -41,7 +42,7 @@ robot:
 # control robot via mqtt
 broker:
   enabled: True
-  url: 127.0.0.1
+  url: 192.168.1.19
   port: 1883
   topic:
     request: api/request
