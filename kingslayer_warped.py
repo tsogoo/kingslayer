@@ -103,8 +103,8 @@ class Kingslayer:
         self.config = get_config(config, "app")
 
         # initialize models yolo detector
-        self.board_model = YOLO(board_weight)
-        self.chess_model = YOLO(chess_model_weight)
+        self.board_model = YOLO(f"models/{board_weight}")
+        self.chess_model = YOLO(f"models/{chess_model_weight}")
 
         # initialize chess engine helper
         self.init_chess_engine()

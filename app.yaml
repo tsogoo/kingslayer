@@ -11,7 +11,7 @@ robot:
     delay: 50 #ms
     check_phase: true
   speed:
-    xy: 15000
+    xy: 10000
     xy_slow: 1000
     z: 15000
     z_slow: 1000
