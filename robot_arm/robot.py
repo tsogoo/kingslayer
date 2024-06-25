@@ -13,6 +13,7 @@ class RobotTask(Enum):
     Out = "Out"     # same as place but place outside of board
     Move = "Move"   # default
     In = "In"       # same as take but take from outside of board
+    Buzzer = "Buzzer"
 
 class RobotMove:
     
@@ -286,7 +287,27 @@ class Robot:
                 )
             )
         return gcode
-
+    
+    def task_handle(self, task:RobotTask):
+        gcode = []
+        if task == RobotTask.Buzzer:
+            # 
+            # in printer.cfg add these
+            # [output_pin buzzer]
+            # pin: PB4
+            # pwm: True
+            # cycle_time: 0.001
+            duration = get_config(self.config, 'buzzer:duration')
+            pwm = get_config(self.config, 'buzzer:pwm')
+            fmt_pin_code = "SET_PIN PIN=buzzer VALUE={}"
+            gcode.extend([
+                fmt_pin_code.format(pwm),
+                "G4 P{}".format(duration),
+                fmt_pin_code.format(0)
+            ])
+        
+        if len(gcode) > 0:
+            self.commands_handle(gcode)
 
 class RobotApiCommand(Enum):
     Command = "Command"

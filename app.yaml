@@ -35,6 +35,9 @@ robot:
   in:
     x: 400
     y: 0
+  buzzer:
+    duration: 1000 #ms
+    pwm: 0.1 #0<pwm<1
 # control robot via mqtt
 broker:
   enabled: True

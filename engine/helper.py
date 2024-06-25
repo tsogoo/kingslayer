@@ -84,7 +84,8 @@ class ChessEngineHelper:
     def move(self, player_move):
         if self.is_valid_move(player_move):
             self.board.push(get_move(player_move))
-            print(self.board)
+            # print(self.board)
+        return self.is_check()
 
     # check game is over or stalemate
     def is_game_over(self):
@@ -139,3 +140,7 @@ class ChessEngineHelper:
             (piece.piece_type == chess.PAWN and y == 7 and piece.color == chess.WHITE) or
             (piece.piece_type == chess.PAWN and y == 0 and piece.color == chess.BLACK)
         )
+    
+    # check it after move
+    def is_check(self):
+        return self.board.is_check()
