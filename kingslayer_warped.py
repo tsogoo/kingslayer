@@ -84,7 +84,7 @@ class Kingslayer:
         self.models = []
         self.pts_square = []
         self.pts_perspective = []
-        self.margin = 70
+        self.margin = 86
         self.CONFIDENCE_THRESHOLD = 0.6
         self.CROP_SIZE = 640
 
@@ -134,14 +134,13 @@ class Kingslayer:
         w2 = self.robot.board_square_size * 8
         scale = 1
         x = int(
-            xy[0] * scale * w1 / self.CROP_SIZE
-            - self.robot.board_margin_size * w2 / self.CROP_SIZE
-            - 9
+            xy[0] * w1 / self.CROP_SIZE
+            - self.robot.board_margin_size
         )
         y = int(
             xy[1] * scale * w1 / self.CROP_SIZE
-            - self.robot.board_margin_size * w2 / self.CROP_SIZE
-            - 9
+            - self.robot.board_margin_size
+           
         )
         return (x, y)
 
@@ -200,8 +199,8 @@ class Kingslayer:
                     # )
 
                     # gettting center of the detected model
-                    y = int(y + h * 5 / 8 + (self.CROP_SIZE - y) / 28)
-                    x = int(x + w / 2 + (self.CROP_SIZE / 2 - x) / 40)
+                    y = int(y + h * 5 / 8 + (self.CROP_SIZE - y) / 80)
+                    x = int(x + w / 2 + (self.CROP_SIZE / 2 - x) / 60)
 
                     cv2.circle(img, (x, y), 3, (255, 0, 0), -1)
 
@@ -539,7 +538,7 @@ chess_model_weight = args.chess_model_weight
 
 
 chess = Kingslayer(board_weight, chess_model_weight)
-best_move = chess.process_from_image(image)
+# best_move = chess.process_from_image(image)
 
 while True:
     with open("status.json", "r") as f:

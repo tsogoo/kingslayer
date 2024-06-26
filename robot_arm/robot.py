@@ -176,8 +176,8 @@ class Robot:
         if not should_delay:
             step = 1
         if is_check:
-            release_angle = 0
-            take_angle = 180   
+            release_angle = release_angle - 30
+            take_angle = take_angle   
         if not is_take:
             start_angle = take_angle
             end_angle = release_angle
@@ -202,8 +202,12 @@ class Robot:
         for gcode in gcodes:
             self.command_handle(gcode)
 
+    def empty_commands(self):
+        self.commands = []
+
     # e = chess_engine_helper, m = main/kingslayer/
     def move(self, e, m, best_move, turn):
+        self.empty_commands()
 
         moves = []
         

@@ -166,3 +166,5 @@ datasets_kq/
 datasets_board/
 runs/
 models/
+camera_images/
+*.jpg
