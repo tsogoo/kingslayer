@@ -16,7 +16,7 @@ with open("status.json", "r") as f:
     print(status["status"])
 
     cv2.imwrite("frame.jpg", frame)
-    status["status"] = "starteddddddddddddddddddddd"
+    status["status"] = "started123456789"
     with open("status.json", "w") as f:
         json.dump(status, f)
     time.sleep(1)

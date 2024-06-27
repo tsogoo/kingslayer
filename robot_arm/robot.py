@@ -32,6 +32,51 @@ class Robot:
         self.board_margin_size = get_config(self.config, "board:margin_size")
         self.commands = []
 
+
+    def calibrate_board(self):
+        self.commands = [
+            "G28",
+            # "SET_GCODE_OFFSET X={} Y={}".format(
+            #     get_config(self.config, 'board:x'),
+            #     get_config(self.config, 'board:y')
+            # ),
+            "G1 X{} Y{} Z{} F{}".format(
+                (int(get_config(self.config, 'board:x')) - int(get_config(self.config, 'board:margin_size'))),
+                (int(get_config(self.config, 'board:y')) - int(get_config(self.config, 'board:margin_size'))),
+                get_config(self.config, 'board:figure_z'),
+                self.xy_speed()
+            ),
+            "G1 X{} Y{} Z{} F{}".format(
+                (int(get_config(self.config, 'board:x')) + int(get_config(self.config, 'board:margin_size'))+ 8 * int(get_config(self.config, 'board:square_size'))),
+                (int(get_config(self.config, 'board:y')) - int(get_config(self.config, 'board:margin_size'))),
+                get_config(self.config, 'board:figure_z'),
+                self.xy_speed()
+            ),
+            "G1 X{} Y{} Z{} F{}".format(
+                (int(get_config(self.config, 'board:x')) + int(get_config(self.config, 'board:margin_size'))+ 8 * int(get_config(self.config, 'board:square_size'))),
+                (int(get_config(self.config, 'board:y')) + int(get_config(self.config, 'board:margin_size'))+ 8 * int(get_config(self.config, 'board:square_size'))),
+                get_config(self.config, 'board:figure_z'),
+                self.xy_speed()
+            ),
+            "G1 X{} Y{} Z{} F{}".format(
+                (int(get_config(self.config, 'board:x')) - int(get_config(self.config, 'board:margin_size'))),
+                (int(get_config(self.config, 'board:y')) + int(get_config(self.config, 'board:margin_size'))+ 8 * int(get_config(self.config, 'board:square_size'))),
+                get_config(self.config, 'board:figure_z'),
+                self.xy_speed()
+            ),
+            "G1 z{}".format(get_config(self.config, 'board:safe_z')),
+            "G1 X{}".format(0),
+            "G28",
+            "M84"
+        ]
+        print(get_config(self.config, 'urls:klipper'))
+        print(self.commands)
+
+        requests.post(
+            get_config(self.config, 'urls:klipper'), json={"commands": self.commands}
+        )
+        print("-======================responded")
+        
     def move_handle(self, moves, turn):
         self.commands_handle(self.before_move_code())
         # initial point /offset calculated/
@@ -67,7 +112,7 @@ class Robot:
         # go to safe z to travel if needed
         gcode.append(
             "G1 Z{} F{}".format(
-                get_config(self.config, 'board:safe_z'), self.z_speed()
+                get_config(self.config, 'board:safe_z'), self.z_speed(is_slow=True)
             )
         )
         
@@ -176,7 +221,7 @@ class Robot:
         if not should_delay:
             step = 1
         if is_check:
-            release_angle = release_angle - 30
+            release_angle = release_angle - 0
             take_angle = take_angle   
         if not is_take:
             start_angle = take_angle
@@ -257,14 +302,13 @@ class Robot:
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
 
         self.move_handle(moves, turn)
-        response = requests.post(
+        requests.post(
             "http://192.168.1.19:8000/", json={"commands": self.commands}
         )
         # response = requests.get(
         #     "http://192.168.1.19:8000/", {"commands": self.commands}
         # )
         print("-======================responded")
-        print(response.text)
 
     def xy_speed(self, is_slow:bool=False):
         return get_config(self.config, 'speed:xy' if not is_slow else 'speed:xy_slow')

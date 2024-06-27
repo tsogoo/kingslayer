@@ -81,12 +81,12 @@ def get_blurry_image(image):
 
     # Canny Edge Detection
 
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    clahe = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(3, 3))
     enhanced = clahe.apply(gray)
 
     # Apply bilateral filter
     # enhanced = cv2.bilateralFilter(enhanced, 9, 75, 75)
 
     # apply blur
-    enhanced = cv2.GaussianBlur(enhanced, (3, 3), 0)
+    # enhanced = cv2.GaussianBlur(enhanced, (1, 1), 0)
     return enhanced
