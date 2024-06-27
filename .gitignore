@@ -159,14 +159,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-yolov8n.pt
-yolov8l.pt
-yolov8x.pt
 pt/
 labels/
 datasets/
 datasets_kq/
 datasets_board/
 runs/
+models/
+camera_images/
 *.jpg
 *.png

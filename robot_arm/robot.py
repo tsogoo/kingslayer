@@ -6,6 +6,7 @@ import threading
 import json
 import math
 from common.config import get_config
+import requests
 
 class RobotTask(Enum):
     Take = "Take"   # take figure from board
@@ -27,6 +28,9 @@ class Robot:
     def __init__(self, config):
         self.config = get_config(config, 'robot')
         self.robotApiHandler = RobotApiHandler(config=config)
+        self.board_square_size = get_config(self.config, "board:square_size")
+        self.board_margin_size = get_config(self.config, "board:margin_size")
+        self.commands = []
 
     def move_handle(self, moves, turn):
         self.commands_handle(self.before_move_code())
@@ -172,8 +176,8 @@ class Robot:
         if not should_delay:
             step = 1
         if is_check:
-            release_angle = 0
-            take_angle = 180   
+            release_angle = release_angle - 30
+            take_angle = take_angle   
         if not is_take:
             start_angle = take_angle
             end_angle = release_angle
@@ -191,14 +195,19 @@ class Robot:
         return gcode
 
     def command_handle(self, gcode):
+        self.commands.append(gcode)
         self.robotApiHandler.command(RobotApiCommand.Command, gcode)
     
     def commands_handle(self, gcodes):
         for gcode in gcodes:
             self.command_handle(gcode)
 
+    def empty_commands(self):
+        self.commands = []
+
     # e = chess_engine_helper, m = main/kingslayer/
     def move(self, e, m, best_move, turn):
+        self.empty_commands()
 
         moves = []
         
@@ -248,6 +257,14 @@ class Robot:
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
 
         self.move_handle(moves, turn)
+        response = requests.post(
+            "http://192.168.1.19:8000/", json={"commands": self.commands}
+        )
+        # response = requests.get(
+        #     "http://192.168.1.19:8000/", {"commands": self.commands}
+        # )
+        print("-======================responded")
+        print(response.text)
 
     def xy_speed(self, is_slow:bool=False):
         return get_config(self.config, 'speed:xy' if not is_slow else 'speed:xy_slow')
