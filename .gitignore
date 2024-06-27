@@ -168,3 +168,5 @@ datasets/
 datasets_kq/
 datasets_board/
 runs/
+*.jpg
+*.png
