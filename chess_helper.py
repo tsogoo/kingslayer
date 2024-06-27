@@ -1,6 +1,7 @@
 from engine.helper import ChessEngineHelper
 import chess
 from engine.detect import Detector
+import time
 
 # example
 # helper = ChessEngineHelper()
@@ -73,47 +74,95 @@ def main():
 # if __name__ == "__main__":
 #     main()
 
-# example
-class Test:
-
-    def __init__(self):
+# for testing board detection from image
+def test_detect():
+    from ultralytics import YOLO
+    from engine.detect import detect, detect_from_camera, detect2
+    board_pt = YOLO('pt/best_board.pt')
+    figure_pt = YOLO('pt/best_cm.pt')
+    # for i in range(1, 5, 1):
+    #     detect2(board_pt, figure_pt, str(i)+'.jpg')
+    #     input('continue')
+    detect2(board_pt, figure_pt, 'tmp.jpg', False)
+    # detect(board_pt, figure_pt, '1.jpg')
+    # detect_from_camera(board_pt, figure_pt, '1.jpg')
         
-        import os
-        import yaml
-
-        current_file_path = os.path.abspath(__file__)
-        parent_directory = os.path.dirname(current_file_path)
-        with open(os.path.join(parent_directory, 'app.yaml'), 'r') as file:
-            config = yaml.safe_load(file)
-
-        from engine.helper import ChessEngineHelper
-        from robot_arm.robot import Robot
-        self.e = ChessEngineHelper()
-        self.robot = Robot(config=config)
-
-    def get_figure_actual_position(self, x, y, is_occupied=False):
-        # new board square height, width = 370/8 = 46.25
-        # x, y => figure's square coordinate on board, is_occupied => whether square is occupied
-        if is_occupied:
-            # TODO get detected location
-            return x*46+23, y*46+23
-        # center of square
-        return x*46+23, y*46+23
+# for testing board detection from image
+def test_detect_from_video(start_idx:int=0, check_idx:int=0):
+    # from ultralytics import YOLO
+    from engine.detect import detect2
+    import cv2
+    # board_pt = YOLO('pt/best_board.pt')
     
-    def test(self):
-        e = self.e
-        e.initialize_board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") # new game
-        # e.initialize_board("4k3/P7/8/8/8/8/8/4K3 w") # promotion
-        # e.initialize_board("4k3/8/8/8/8/8/p7/4K3 b") # promotion
-        # e.initialize_board("4k2r/p7/8/8/8/8/8/4K3 b KQkq") # castling
-        # e.initialize_board("r3k3/8/8/8/8/8/8/4K3 b KQkq") # castling
-        while not e.board.is_game_over():
-            # print(e.board)
-            m = e.get_best_move()
-            if e.is_valid_move(m):
-                self.robot.move(e, self, m, e.board.turn)
-                e.move(m)
-                print(e.board)
-            input("hit enter to move:")
-t = Test()
-t.test()
+    cap = cv2.VideoCapture("v.mp4")
+    idx = 0
+    er = []
+    is_debug = True if check_idx > 0 else False
+    output = True if start_idx == 0 and check_idx == 0 else False 
+    while 1:
+        idx = idx + 1
+        ret, image = cap.read()
+        if ret:
+            if is_debug and idx < check_idx:
+                continue
+            if is_debug and idx > check_idx:
+                break
+            cv2.imwrite('tmp.jpg', image)
+            if idx >= start_idx:
+                print('idx:calc:', idx)
+                detect2(None, 'tmp.jpg', is_debug= is_debug, idx= idx, output= output)
+            else:
+                print('idx:', idx)
+        else:
+            break
+    print(er)
+    # detect2(board_pt, figure_pt, '1.jpg')
+    # detect(board_pt, figure_pt, '1.jpg')
+    # detect_from_camera(board_pt, figure_pt, '1.jpg')
+
+# for test gcode is correct, print it in robot.commands_handle
+def test_gcode():
+    import os
+    import yaml
+    from robot_arm.robot import Robot, RobotTask, RobotMove
+    with open(
+        os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'app.yaml'
+        ), 'r'
+    ) as file:
+        config = yaml.safe_load(file)
+    bot = Robot(config=config)
+    r1 = RobotMove(RobotTask.Take, 90, 90)
+    r2 = RobotMove(RobotTask.Place, 120, 120)
+    bot.move_handle([r1, r2], True)
+
+def chess_test():
+    with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
+        engine.configure({"Skill Level": 9})
+        board = chess.Board("4k3/8/8/8/8/8/8/4K2R w KQkq")
+
+        while not board.is_game_over():
+            print(board)
+            if board.turn == chess.WHITE:
+                human_move = input("Enter your move (e2e4): ")
+                try:
+                    board.push_san(human_move)
+                except ValueError:
+                    print("Invalid move. Try again.")
+                    continue
+            else:
+                print("Stockfish is thinking...")
+                if board.is_check():
+                    print('checked')
+                result = engine.play(board, chess.engine.Limit(time=0.1))
+                board.push(result.move)
+
+def test_create_video():
+    from engine.detect import create_video
+    create_video()
+
+test_detect_from_video()
+# test_detect()
+# chess_test()
+    
+# test_create_video()

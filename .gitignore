@@ -168,3 +168,4 @@ runs/
 models/
 camera_images/
 *.jpg
+*.png
