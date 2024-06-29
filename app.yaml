@@ -37,11 +37,12 @@ robot:
     x: 400
     y: 0
   buzzer:
-    duration: 1000 #ms
+    beep_duration: 100 #ms
     pwm: 0.1 #0<pwm<1
+    beep_times: 3
 # control robot via mqtt
 broker:
-  enabled: True
+  enabled: False
   url: 192.168.1.19
   port: 1883
   topic:
