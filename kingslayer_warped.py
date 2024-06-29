@@ -148,20 +148,17 @@ class Kingslayer:
 
         frame_path = image
         conf = self.CONFIDENCE_THRESHOLD
-        for j in range(8):
-            if j < 2:
-                conf = 0.8
-            elif j < 3:
+        for j in range(3):
+            if j < 3:
                 conf = 0.7
-            elif j < 4:
-                conf = 0.6
-            elif j < 5:
-                conf = 0.5
+            # elif j < 3:
+            #     conf = 0.6
+           
             print("=============")
             print("Confidence:", conf)
             print(frame_path)
             chess_results = self.chess_model.predict(
-                self.augment_image(frame_path), save=True, imgsz=864, conf=conf
+                self.augment_image(frame_path), save=True, imgsz=640, conf=conf
             )
             img = cv2.imread(frame_path)
             frame_path = f"augmented{j}.jpg"
@@ -172,22 +169,19 @@ class Kingslayer:
             for result in chess_results:
                 # if len(result.boxes.xywh) == 0 and conf <= self.CONFIDENCE_THRESHOLD:
                 #     return
-
                 for i in range(len(result.boxes.xywh)):
                     x, y, w, h = result.boxes.xywh[i]
                     x, y, xend, yend = result.boxes.xyxy[i]
                     dx = 0
                     dy = h / 7
 
-                    # if h > img.shape[0] / 16:
-                    #     dy = h / 8
 
                     # fill detected model with white
                     img = cv2.rectangle(
                         img,
                         (int(x + dx), int(y + dy)),
                         (int(x + w), int(y + h)),
-                        (100, 100, 100),
+                        (200, 200, 200),
                         -1,
                     )
                     # img = cv2.rectangle(
@@ -198,7 +192,7 @@ class Kingslayer:
                     #     1,
                     # )
 
-                    # gettting center of the detected model
+                    # getting center of the detected model
                     y = int(y + h * 5 / 8 + (self.CROP_SIZE - y) / 80)
                     x = int(x + w / 2 + (self.CROP_SIZE / 2 - x) / 60)
 
@@ -282,7 +276,7 @@ class Kingslayer:
         #     color, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 9, 5
         # )
 
-        ret, gray = cv2.threshold(color, 160, 255, 0)
+        ret, gray = cv2.threshold(color, 120, 235, 0)
         contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = find_max_contour_area(contours)
         # gray = cv2.drawContours(gray, contours, -1, (0, 255, 0), 2).copy()
@@ -544,11 +538,16 @@ while True:
     with open("status.json", "r") as f:
         try:
             status = json.load(f)
-            if status["status"] == "starteddddddddddddddddddddd":
+            if status["status"] == "started123456789":
                 try:
                     best_move = chess.process_from_image(image)
                 except Exception as e:
                     print("Error:", e)
+                status["status"] = "stopped"
+                with open("status.json", "w") as f:
+                    json.dump(status, f)
+            elif status["status"] == "calibrate_board":
+                chess.robot.calibrate_board()
                 status["status"] = "stopped"
                 with open("status.json", "w") as f:
                     json.dump(status, f)

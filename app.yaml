@@ -1,48 +1,51 @@
 robot:
   optimization:
     enabled: true
-    ratio: '10:80:10'
-    short_distance: 100
+    ratio: '5:90:5'
+    short_distance: 40
     short_distance_ratio: '30:40:30' #[100]
   gripper:
-    take_angle: 163
-    release_angle: 95
+    take_angle: 105
+    release_angle: 55
     step: 5
     delay: 200 #ms
     check_phase: true
   speed:
-    xy: 10000
+    xy: 8000
     xy_slow: 1000
-    z: 8000
+    z: 4000
     z_slow: 1000
   timer:
     enabled: true
-    x: -95
+    x: -115
     y: 90
-    z: -50
+    z: -45
     y_b: 220
   board:
-    x: -184
-    y: 210
+    x: -164 # 
+    y: 230
     z: -80
     safe_z: 20
     figure_z: -50
     square_size: 41
     margin_size: 20
   out:
-    x: 400
-    y: 50
+    x: -115
+    y: 0
     z: -60
   in:
-    x: 400
-    y: 0
+    x: -115
+    y: 270
   buzzer:
     beep_duration: 100 #ms
     pwm: 0.1 #0<pwm<1
     beep_times: 3
+  urls:
+    klipper: http://192.168.1.19:8000/
+
 # control robot via mqtt
 broker:
-  enabled: False
+  enabled: True
   url: 192.168.1.19
   port: 1883
   topic:
@@ -51,6 +54,11 @@ broker:
 
 klipper:
   socket: /tmp/klippy_uds
+
+urls:
+  klipper: http://192.168.1.19/
+  cam_board: http://192.168.1.205:8080/
+  cam_timer: http://192.168.1.205:8080/
 
 app:
   chess_engine:

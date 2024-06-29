@@ -292,7 +292,7 @@ def detect(board_pt, figure_pt, image_path:str):
     cv2.imwrite('12_perspective.png', out)
 
 
-def detect2(board_pt, image_path:str, is_debug:bool=False, idx:int=1, output:bool=False, from_step:int=5):
+def detect2(board_pt, image_path:str, is_debug:bool=False, idx:int=1, output:bool=False, from_step:int=11):
     
     # 1. detect board, crop image
     # board_results = board_pt.predict(image_path, save=False, imgsz=640, conf=0.2)
@@ -385,9 +385,11 @@ def detect2(board_pt, image_path:str, is_debug:bool=False, idx:int=1, output:boo
     if is_debug and from_step <= 9:
         cv2.imshow('detected', image)
         cv2.waitKey(0)
-
+    
     p = []
     approx = cv2.approxPolyDP(contour, 0.04 * cv2.arcLength(contour, True), True)
+    if len(approx) != 4:
+        raise Exception("contour has no 4 corners")
     for a in approx:
         p.append(a[0])
     
@@ -408,7 +410,60 @@ def detect2(board_pt, image_path:str, is_debug:bool=False, idx:int=1, output:boo
         cv2.imshow('perspective', out)
         cv2.waitKey(0)
 
-    # 5. merge original and result images into one image
+    # 5. Find squares
+    im = out.copy()
+    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_grayed', gray)
+        cv2.waitKey(0)
+    
+    blur = cv2.medianBlur(gray, 5)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_blured', blur)
+        cv2.waitKey(0)
+
+    # edge detection
+    sharpen_kernel = np.array([
+        [-1,-1,-1],
+        [-1, 9,-1],
+        [-1,-1,-1]
+    ])
+    sharpen = cv2.filter2D(blur, -1, sharpen_kernel)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_sharpen_edge', sharpen)
+        cv2.waitKey(0)
+
+    _, thresh = cv2.threshold(sharpen, 150, 250, cv2.THRESH_BINARY_INV)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_threshed', thresh)
+        cv2.waitKey(0)
+
+    # shrink square to detect contour
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (4,4))
+    close = cv2.erode(thresh, kernel, iterations=2)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_erode', close)
+        cv2.waitKey(0)
+    
+    _, thresh = cv2.threshold(close, 150, 250, cv2.THRESH_BINARY_INV)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_threshed_inv', thresh)
+        cv2.waitKey(0)
+
+    # remove gaps
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (8,8))
+    open = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=2)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_opened', open)
+        cv2.waitKey(0)
+
+    contours, _ = cv2.findContours(open, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(im, contours, -1, (255,0,0), 2)
+    if is_debug and from_step <= 11:
+        cv2.imshow('square_contours', im)
+        cv2.waitKey(0)
+
+    # 6. merge original and result images into one image
     h1, w1 = image_copy.shape[:2]
     h2, w2 = image.shape[:2]
     h3, w3 = out.shape[:2]

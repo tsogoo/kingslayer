@@ -127,19 +127,19 @@ class BlenderChess:
         self.WHITE = 1
         self.MODEL_RADIUS = 0.15
         self.MIN_MODELS = 1
-        self.MAX_MODELS = 32
+        self.MAX_MODELS = 50
         self.MIN_X = -1
-        self.MAX_X = 1
+        self.MAX_X = 2
         self.MIN_Y = -1
-        self.MAX_Y = 1
+        self.MAX_Y = 2
         self.RENDER_WIDTH = 840
         self.RENDER_HEIGHT = 840
         self.CROP_WIDTH = 840
         self.CROP_HEIGHT = 840
         self.IMG_WIDTH = 840
         self.IMG_HEIGHT = 840
-        self.TRAIN_ITER = 20000
-        self.VAL_ITER = 2000
+        self.TRAIN_ITER = 6000
+        self.VAL_ITER = 500
         self.TEST_ITER = 20
 
         # world = bpy.data.worlds['World']
@@ -149,6 +149,7 @@ class BlenderChess:
         material = bpy.data.objects["BgPlane"].material_slots[0].material
         # bgplane.use_nodes = True
         self.bg_node = material.node_tree.nodes["Image Texture"]
+        self.hdr_imgs = os.listdir(os.path.join(self.blender_dir, "hdri"))
 
     def set_random_background(self):
         bg_imgs = os.listdir(os.path.join(self.blender_dir, "..", "backgrounds"))
@@ -214,7 +215,11 @@ class BlenderChess:
         # Set the location of the duplicated object
         duplicated_obj.location.x = x_pos
         duplicated_obj.location.y = y_pos
+        bpy.ops.transform.resize(value=(1, 1, random.uniform(1, 2.5)), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', constraint_axis=(False, False, True), mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False, release_confirm=True)
+
+        
         duplicated_obj.rotation_euler.z = random.uniform(0, 360)
+        
 
         return duplicated_obj
 
@@ -234,7 +239,9 @@ class BlenderChess:
         # Set the render resolution (optional)
         bpy.context.scene.render.resolution_x = self.RENDER_WIDTH
         bpy.context.scene.render.resolution_y = self.RENDER_HEIGHT
-        bpy.context.scene.render.engine = "CYCLES"
+        bpy.context.scene.render.engine = random.choice(["CYCLES"]) #, "BLENDER_EEVEE"
+        bpy.context.scene.render.image_settings.color_mode = 'BW'
+        bpy.context.scene.render.image_settings.file_format = 'PNG'
         bpy.context.scene.cycles.samples = 8
         # Set the output file format and path
         output_filename = f"{filename}.png"
@@ -267,7 +274,7 @@ class BlenderChess:
     def draw_chessboard(self):
         total_models = random.randint(self.MIN_MODELS, self.MAX_MODELS)
         data = []
-        bpy.data.objects["Board"].hide_render = random.choice([True, False])
+        bpy.data.objects["Board"].hide_render = False # random.choice([True, False])
         for i in range(total_models):
             model_index = random.randint(0, len(self.models) - 1)
             side = random.choice([self.BLACK, self.WHITE])
@@ -374,7 +381,13 @@ class BlenderChess:
             1,
         )
 
-        bpy.data.objects["Sun"].data.energy = random.uniform(0.1, 8.5)
+        
+        bg_img = os.path.join(self.blender_dir, "hdri", random.choice(self.hdr_imgs))
+        bpy.data.worlds["World"].node_tree.nodes["Environment Texture"].image = bpy.data.images.load(bg_img)
+
+        bpy.data.worlds["World"].node_tree.nodes["Mapping"].inputs[2].default_value[2] = random.uniform(0, 6.28)
+        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = random.uniform(0.8, 2)
+
 
         bpy.data.objects["Camera"].location.x = random.uniform(1, 2)
         # bpy.data.objects["Camera"].location.y = random.uniform(-1, 1)
@@ -382,10 +395,13 @@ class BlenderChess:
         bpy.data.objects["Camera"].rotation_euler.x = random.uniform(0.28, 0.5)
         # bpy.data.objects["Camera"].rotation_euler.y = random.uniform(0, 0.5)
         bpy.data.objects["Camera"].rotation_euler.z = random.uniform(1.3, 1.8)
+        bpy.data.objects["Camera"].data.dof.use_dof = True
+        bpy.data.objects["Camera"].data.dof.focus_distance = random.uniform(1.5, 2.2)
+        #bpy.data.objects["Camera"].data.dof.aperture_fstop = random.uniform(2.2, 4)
 
     def generate_data(self, mode, iter, start_index=0):
         # make dir if not exists named mode
-        data_dir = os.path.join(self.blender_dir, "..", "datasets")
+        data_dir = os.path.join(self.blender_dir, "..", "cm_datasets")
         if not os.path.exists(os.path.join(data_dir, mode)):
             os.makedirs(os.path.join(data_dir, mode))
             os.makedirs(os.path.join(data_dir, mode, "images"))
@@ -402,6 +418,6 @@ class BlenderChess:
 
 
 blender_chess = BlenderChess()
-# blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
-# blender_chess.generate_data("val", blender_chess.VAL_ITER, 0)
-blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 12222)
+blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
+#blender_chess.generate_data("val", blender_chess.VAL_ITER, 330)
+blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 13042)

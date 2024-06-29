@@ -4,7 +4,7 @@ import time
 import pytesseract
 
 while True:
-    cap = cv2.VideoCapture("http://192.168.1.98:8080/video")
+    cap = cv2.VideoCapture("http://192.168.1.112:8080/video")
     ret, frame = cap.read()
     cv2.imwrite("frame2.jpg", frame)
     cap.release()
