@@ -132,9 +132,10 @@ def test_gcode():
     ) as file:
         config = yaml.safe_load(file)
     bot = Robot(config=config)
-    r1 = RobotMove(RobotTask.Take, 90, 90)
-    r2 = RobotMove(RobotTask.Place, 120, 120)
-    bot.move_handle([r1, r2], True)
+    # r1 = RobotMove(RobotTask.Take, 90, 90)
+    # r2 = RobotMove(RobotTask.Place, 120, 120)
+    # bot.move_handle([r1, r2], True)
+    bot.task_handle(RobotTask.Buzzer)
 
 def chess_test():
     with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
@@ -161,8 +162,8 @@ def test_create_video():
     from engine.detect import create_video
     create_video()
 
-test_detect_from_video()
+# test_detect_from_video(check_idx=1)
 # test_detect()
 # chess_test()
-    
 # test_create_video()
+test_gcode()

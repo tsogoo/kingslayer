@@ -408,19 +408,21 @@ class Robot:
             #
             # in printer.cfg add these
             # [output_pin buzzer]
-            # pin: PB4
+            # pin: PE1 # near servo in aux1 section D1=red, GND=black, ramps1.4
             # pwm: True
             # cycle_time: 0.001
-            duration = get_config(self.config, "buzzer:duration")
+            duration = get_config(self.config, "buzzer:beep_duration")
             pwm = get_config(self.config, "buzzer:pwm")
+            times = get_config(self.config, "buzzer:beep_times")
             fmt_pin_code = "SET_PIN PIN=buzzer VALUE={}"
-            gcode.extend(
-                [
-                    fmt_pin_code.format(pwm),
-                    "G4 P{}".format(duration),
-                    fmt_pin_code.format(0),
-                ]
-            )
+            for t in range(times):
+                gcode.extend(
+                    [
+                        fmt_pin_code.format(pwm),
+                        "G4 P{}".format(duration),
+                        fmt_pin_code.format(0),
+                    ]
+                )
 
         if len(gcode) > 0:
             self.commands_handle(gcode)

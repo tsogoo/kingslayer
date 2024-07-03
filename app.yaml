@@ -37,8 +37,9 @@ robot:
     x: -115
     y: 270
   buzzer:
-    duration: 1000 #ms
+    beep_duration: 100 #ms
     pwm: 0.1 #0<pwm<1
+    beep_times: 3
   urls:
     klipper: http://192.168.1.19:8000/
 
