@@ -133,15 +133,8 @@ class Kingslayer:
         w1 = self.robot.board_square_size * 8 + 2 * self.robot.board_margin_size
         w2 = self.robot.board_square_size * 8
         scale = 1
-        x = int(
-            xy[0] * w1 / self.CROP_SIZE
-            - self.robot.board_margin_size
-        )
-        y = int(
-            xy[1] * scale * w1 / self.CROP_SIZE
-            - self.robot.board_margin_size
-           
-        )
+        x = int(xy[0] * w1 / self.CROP_SIZE - self.robot.board_margin_size)
+        y = int(xy[1] * scale * w1 / self.CROP_SIZE - self.robot.board_margin_size)
         return (x, y)
 
     def detect_models(self, image):
@@ -153,7 +146,7 @@ class Kingslayer:
                 conf = 0.7
             # elif j < 3:
             #     conf = 0.6
-           
+
             print("=============")
             print("Confidence:", conf)
             print(frame_path)
@@ -174,7 +167,6 @@ class Kingslayer:
                     x, y, xend, yend = result.boxes.xyxy[i]
                     dx = 0
                     dy = h / 7
-
 
                     # fill detected model with white
                     img = cv2.rectangle(
@@ -276,7 +268,7 @@ class Kingslayer:
         #     color, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 9, 5
         # )
 
-        ret, gray = cv2.threshold(color, 120, 235, 0)
+        ret, gray = cv2.threshold(color, 190, 235, 0)
         contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = find_max_contour_area(contours)
         # gray = cv2.drawContours(gray, contours, -1, (0, 255, 0), 2).copy()
@@ -492,6 +484,19 @@ class Kingslayer:
                     < (x + 1) * self.robot.board_square_size
                     and model[1][0] < (y + 1) * self.robot.board_square_size
                 ):
+                    if (
+                        self.robot.board_square_size * 8
+                        - model[1][1] // self.robot.board_square_size
+                        < self.robot.board_square_size / 5
+                    ):  # a1 ruu iluu temuulsen bol gol
+                        return (
+                            self.robot.board_square_size * 8
+                            - model[1][1]
+                            + self.robot.board_square_size / 5
+                            - self.robot.board_square_size * 8
+                            - model[1][1] // self.robot.board_square_size,
+                            model[1][0],
+                        )
                     return (self.robot.board_square_size * 8 - model[1][1], model[1][0])
             return (
                 x * self.robot.board_square_size + self.robot.board_square_size / 2,

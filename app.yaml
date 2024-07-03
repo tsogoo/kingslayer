@@ -6,7 +6,7 @@ robot:
     short_distance_ratio: '30:40:30' #[100]
   gripper:
     take_angle: 105
-    release_angle: 55
+    release_angle: 60
     step: 5
     delay: 200 #ms
     check_phase: true
@@ -19,19 +19,19 @@ robot:
     enabled: true
     x: -115
     y: 90
-    z: -45
+    z: -50
     y_b: 220
   board:
     x: -164 # 
     y: 230
     z: -80
     safe_z: 20
-    figure_z: -50
+    figure_z: -54
     square_size: 41
     margin_size: 20
   out:
     x: -115
-    y: 0
+    y: 220
     z: -60
   in:
     x: -115
