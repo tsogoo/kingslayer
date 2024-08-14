@@ -48,7 +48,7 @@ lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1
 
 
 # Function to perform inference on a single image
-def predict(image, model, device, threshold=0.6):
+def predict(image, model, device, threshold=0.7):
     model.eval()
     with torch.no_grad():
         image = [F.to_tensor(image).to(device)]
@@ -74,7 +74,7 @@ def predict(image, model, device, threshold=0.6):
 
 # Example of loading and making predictions on a new image
 # image = Image.open("cm_datasets/train/images/0017.png").convert("RGB")
-image = Image.open("frameg.jpg").convert("RGB")
+image = Image.open("warped_image1.jpg").convert("RGB")
 
 boxes, classes, scores = predict(image, model, device)
 
@@ -94,9 +94,12 @@ def draw_boxes(image, boxes, classes, scores):
         image = cv2.putText(
             image, label, tuple(box[0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1
         )
+        print(box)
 
     image = Image.fromarray(image)
     image.save("output_image.jpg")
+
+    print("total objects: ", len(boxes))
 
 
 draw_boxes(image, boxes, classes, scores)

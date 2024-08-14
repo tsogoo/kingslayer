@@ -33,6 +33,7 @@ class CustomDataset(Dataset):
 
         # Extract labels and bounding boxes
         labels = torch.as_tensor(boxes_and_labels[:, 0], dtype=torch.int64)  # labels
+        labels += 1  # 0 is reserved for background
         boxes = boxes_and_labels[
             :, 1:
         ]  # bounding boxes in [x_center, y_center, width, height] format
@@ -88,7 +89,7 @@ transform = T.Compose(
 dataset = CustomDataset(root="cm_datasets/train", transforms=transform)
 train_loader = DataLoader(
     dataset,
-    batch_size=4,
+    batch_size=8,
     shuffle=True,
     num_workers=4,
     collate_fn=lambda x: tuple(zip(*x)),
