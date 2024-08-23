@@ -1,26 +1,18 @@
-import cv2
+import requests
 import json
-import time
-from ultralytics import YOLO
 
+# save image from http url using requests
+image_url = "http://192.168.1.150:8080/photo.jpg"
+img_data = requests.get(image_url).content
+with open("frame.jpg", "wb") as handler:
+    handler.write(img_data)
+    handler.close()
 
-move_model = YOLO("models/best_move.pt")
-
-cap = cv2.VideoCapture("http://192.168.1.205:8080/video")
-
-ret, frame = cap.read()
-if not ret:
-    exit()
 with open("status.json", "r") as f:
     status = json.load(f)
     print(status["status"])
 
-    cv2.imwrite("frame.jpg", frame)
     status["status"] = "started123456789"
     with open("status.json", "w") as f:
         json.dump(status, f)
-    time.sleep(1)
     f.close()
-
-cap.release()
-cv2.destroyAllWindows()

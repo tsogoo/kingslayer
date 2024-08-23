@@ -192,9 +192,50 @@ class Robot:
 
         return gcode
 
+    def perform_code_if_won(self):
+        gcode = self.gripper_code(is_take=False, should_delay=False, is_check=True)
+        gcode.extend(
+            [
+                "G4 P50",
+                "G1 X{} Y{} Z{} ".format(
+                    get_config(self.config, "tissue:x"),
+                    get_config(self.config, "tissue:y"),
+                    get_config(self.config, "board:safe_z"),
+                ),
+                "G1 Z{}".format(
+                    get_config(self.config, "tissue:z"),
+                ),
+            ]
+        )
+        gcode.extend(self.gripper_code(is_take=True, should_delay=False, is_check=True))
+        gcode.extend(
+            [
+                "G1 Z{}".format(
+                    get_config(self.config, "board:safe_z") + 100,
+                ),
+                "G4 P50",
+                "G1 X{} Y{} Z{} F{}".format(
+                    (0 - get_config(self.config, "board:x")),
+                    get_config(self.config, "board:y") + 50,
+                    get_config(self.config, "board:safe_z") + 240,
+                    get_config(self.config, "speed:xy"),
+                ),
+                "G4 P4450",
+            ]
+        )
+
+        gcode.extend(
+            self.gripper_code(is_take=False, should_delay=False, is_check=True)
+        )
+        gcode.append("G4 P1450")
+        gcode.extend(self.gripper_code(is_take=True, should_delay=False, is_check=True))
+        return gcode
+
     def after_move_code(self, last_move: RobotMove = None):
         # home and disable motors
         gcode = []
+        # if True:
+        #     gcode.extend(self.perform_code_if_won())
         gcode.extend(
             [
                 "G1 X{}".format(0 - get_config(self.config, "board:x")),
@@ -218,15 +259,18 @@ class Robot:
         )
         # check gripper working
         if get_config(self.config, "gripper:check_phase"):
+            gcode.append("M106 S100")
             gcode.extend(
                 self.gripper_code(is_take=False, should_delay=False, is_check=True)
             )
+
             gcode.append("G4 P50")
             gcode.extend(
                 self.gripper_code(is_take=True, should_delay=False, is_check=True)
             )
             gcode.append("G4 P50")
         gcode.extend(self.gripper_code(is_take=False, should_delay=False))
+        gcode.append("M107")
         return gcode
 
     def timer_code(self, turn: bool, move: RobotMove, last_move: RobotMove):
@@ -353,7 +397,7 @@ class Robot:
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
 
         self.move_handle(moves, turn)
-        requests.post("http://192.168.1.19:8000/", json={"commands": self.commands})
+        requests.post("http://192.168.1.45:8000/", json={"commands": self.commands})
         # response = requests.get(
         #     "http://192.168.1.19:8000/", {"commands": self.commands}
         # )

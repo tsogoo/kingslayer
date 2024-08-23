@@ -30,7 +30,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             for i in range(len(data["commands"])):
                 r.command(RobotApiCommand.Command, data["commands"][i])
 
-            while not r.request_empty():
+            while not r.ready():
                 time.sleep(0.1)
             # Process the data (this example just prints it)
 

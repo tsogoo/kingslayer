@@ -74,7 +74,7 @@ def predict(image, model, device, threshold=0.7):
 
 # Example of loading and making predictions on a new image
 # image = Image.open("cm_datasets/train/images/0017.png").convert("RGB")
-image = Image.open("warped_image1.jpg").convert("RGB")
+image = Image.open("warped_image.jpg").convert("RGB")
 
 boxes, classes, scores = predict(image, model, device)
 

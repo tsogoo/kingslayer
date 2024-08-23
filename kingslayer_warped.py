@@ -84,9 +84,9 @@ class Kingslayer:
         self.models = []
         self.pts_square = []
         self.pts_perspective = []
-        self.margin = 86
+        self.margin = 186
         self.CONFIDENCE_THRESHOLD = 0.6
-        self.CROP_SIZE = 640
+        self.CROP_SIZE = 840
 
         # conf
         with open(
@@ -151,7 +151,10 @@ class Kingslayer:
             print("Confidence:", conf)
             print(frame_path)
             chess_results = self.chess_model.predict(
-                self.augment_image(frame_path), save=True, imgsz=640, conf=conf
+                self.augment_image(frame_path),
+                save=True,
+                imgsz=self.CROP_SIZE,
+                conf=conf,
             )
             img = cv2.imread(frame_path)
             frame_path = f"augmented{j}.jpg"
@@ -267,8 +270,10 @@ class Kingslayer:
         # gray = cv2.adaptiveThreshold(
         #     color, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 9, 5
         # )
-
-        ret, gray = cv2.threshold(color, 190, 235, 0)
+        reverse = cv2.bitwise_not(color)
+        # for dark cv2.threshold(reverse, 120, 255, 0)
+        # for light cv2.threshold(reverse, 60, 255, 0)
+        ret, gray = cv2.threshold(reverse, 80, 255, 0)
         contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = find_max_contour_area(contours)
         # gray = cv2.drawContours(gray, contours, -1, (0, 255, 0), 2).copy()
@@ -341,7 +346,9 @@ class Kingslayer:
 
     def process_from_image(self, image):
 
-        board_results = self.board_model.predict(image, save=False, imgsz=640, conf=0.7)
+        board_results = self.board_model.predict(
+            image, save=False, imgsz=self.CROP_SIZE, conf=0.7
+        )
         # Load the image using OpenCV
         img = cv2.imread(image)
         img = get_blurry_image(img)

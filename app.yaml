@@ -6,7 +6,7 @@ robot:
     short_distance_ratio: '30:40:30' #[100]
   gripper:
     take_angle: 105
-    release_angle: 60
+    release_angle: 80
     step: 5
     delay: 200 #ms
     check_phase: true
@@ -17,14 +17,14 @@ robot:
     z_slow: 1000
   timer:
     enabled: true
-    x: -115
+    x: -105
     y: 90
-    z: -50
+    z: -80
     y_b: 220
   board:
     x: -164 # 
-    y: 230
-    z: -80
+    y: 250
+    z: -110
     safe_z: 20
     figure_z: -54
     square_size: 41
@@ -36,17 +36,21 @@ robot:
   in:
     x: -115
     y: 270
+  tissue:
+    x: -115
+    y: 30
+    z: -70
   buzzer:
     beep_duration: 100 #ms
     pwm: 0.1 #0<pwm<1
     beep_times: 3
   urls:
-    klipper: http://192.168.1.19:8000/
+    klipper: http://192.168.1.45:8000/
 
 # control robot via mqtt
 broker:
   enabled: True
-  url: 192.168.1.19
+  url: 192.168.1.45
   port: 1883
   topic:
     request: api/request
@@ -56,8 +60,8 @@ klipper:
   socket: /tmp/klippy_uds
 
 urls:
-  klipper: http://192.168.1.19/
-  cam_board: http://192.168.1.205:8080/
+  klipper: http://192.168.1.45/
+  cam_board: http://192.168.1.150:8080/
   cam_timer: http://192.168.1.205:8080/
 
 app:
