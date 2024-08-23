@@ -80,13 +80,15 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
 
     # Sanity check
     if round((max_x - min_x) * dim_x) == 0 or round((max_y - min_y) * dim_y) == 0:
-        return (0, 0, 0, 0)
+        return (0, 0, 0, 0, 0, 0)
 
     return (
         round(min_x * dim_x) / r.resolution_x,  # X
         round(dim_y - max_y * dim_y) / r.resolution_y,  # Y
         round((max_x - min_x) * dim_x) / r.resolution_x,  # Width
         round((max_y - min_y) * dim_y) / r.resolution_y,  # Height
+        me_ob.location.x,
+        me_ob.location.y,
     )
 
 
@@ -150,6 +152,9 @@ class BlenderChess:
         # bgplane.use_nodes = True
         self.bg_node = material.node_tree.nodes["Image Texture"]
         self.hdr_imgs = os.listdir(os.path.join(self.blender_dir, "hdri"))
+
+    def set_with_pivot(self, bool):
+        self.with_pivot = bool
 
     def set_random_background(self):
         bg_imgs = os.listdir(os.path.join(self.blender_dir, "..", "backgrounds"))
@@ -215,11 +220,30 @@ class BlenderChess:
         # Set the location of the duplicated object
         duplicated_obj.location.x = x_pos
         duplicated_obj.location.y = y_pos
-        bpy.ops.transform.resize(value=(1, 1, random.uniform(1, 2.5)), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', constraint_axis=(False, False, True), mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False, release_confirm=True)
+        bpy.ops.transform.resize(
+            value=(1, 1, random.uniform(1, 2.5)),
+            orient_type="GLOBAL",
+            orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+            orient_matrix_type="GLOBAL",
+            constraint_axis=(False, False, True),
+            mirror=False,
+            use_proportional_edit=False,
+            proportional_edit_falloff="SMOOTH",
+            proportional_size=1,
+            use_proportional_connected=False,
+            use_proportional_projected=False,
+            snap=False,
+            snap_elements={"INCREMENT"},
+            use_snap_project=False,
+            snap_target="CLOSEST",
+            use_snap_self=True,
+            use_snap_edit=True,
+            use_snap_nonedit=True,
+            use_snap_selectable=False,
+            release_confirm=True,
+        )
 
-        
         duplicated_obj.rotation_euler.z = random.uniform(0, 360)
-        
 
         return duplicated_obj
 
@@ -239,9 +263,9 @@ class BlenderChess:
         # Set the render resolution (optional)
         bpy.context.scene.render.resolution_x = self.RENDER_WIDTH
         bpy.context.scene.render.resolution_y = self.RENDER_HEIGHT
-        bpy.context.scene.render.engine = random.choice(["CYCLES"]) #, "BLENDER_EEVEE"
-        bpy.context.scene.render.image_settings.color_mode = 'BW'
-        bpy.context.scene.render.image_settings.file_format = 'PNG'
+        bpy.context.scene.render.engine = random.choice(["CYCLES"])  # , "BLENDER_EEVEE"
+        bpy.context.scene.render.image_settings.color_mode = "BW"
+        bpy.context.scene.render.image_settings.file_format = "PNG"
         bpy.context.scene.cycles.samples = 8
         # Set the output file format and path
         output_filename = f"{filename}.png"
@@ -274,7 +298,7 @@ class BlenderChess:
     def draw_chessboard(self):
         total_models = random.randint(self.MIN_MODELS, self.MAX_MODELS)
         data = []
-        bpy.data.objects["Board"].hide_render = False # random.choice([True, False])
+        bpy.data.objects["Board"].hide_render = False  # random.choice([True, False])
         for i in range(total_models):
             model_index = random.randint(0, len(self.models) - 1)
             side = random.choice([self.BLACK, self.WHITE])
@@ -318,46 +342,48 @@ class BlenderChess:
 
         return data
 
-    def calculate_label(self, row):
+    # def calculate_label(self, row):
 
-        scale = 1
-        if row[0] == 0 and row[0] == 6:  # pawn
-            scale = 1
-        elif row[0] == 1 and row[0] == 7:  # bishop
-            scale = 1.75
-        elif row[0] == 2 and row[0] == 8:  # king
-            scale = 1.9
-        elif row[0] == 3 and row[0] == 9:  # queen
-            scale = 1.8
-        elif row[0] == 4 and row[0] == 10:  # rook
-            scale = 1.5
-        elif row[0] == 5 and row[0] == 11:  # knight
-            scale = 1.7
+    #     scale = 1
+    #     if row[0] == 0 and row[0] == 6:  # pawn
+    #         scale = 1
+    #     elif row[0] == 1 and row[0] == 7:  # bishop
+    #         scale = 1.75
+    #     elif row[0] == 2 and row[0] == 8:  # king
+    #         scale = 1.9
+    #     elif row[0] == 3 and row[0] == 9:  # queen
+    #         scale = 1.8
+    #     elif row[0] == 4 and row[0] == 10:  # rook
+    #         scale = 1.5
+    #     elif row[0] == 5 and row[0] == 11:  # knight
+    #         scale = 1.7
 
-        trapets_ind_x = 1 + (row[3] / 8.6)
-        scale = scale * (1.5 - (row[3] / 5))
-        trapets_ind_y = 1
+    #     trapets_ind_x = 1 + (row[3] / 8.6)
+    #     scale = scale * (1.5 - (row[3] / 5))
+    #     trapets_ind_y = 1
 
-        y = (row[3] * trapets_ind_x) / (2.5 * self.MAX_Y) + 0.440 * self.MAX_Y
-        print(row[3], y)
-        x = (row[2] * trapets_ind_x) / (2.3 * self.MAX_X) + 0.490 * self.MAX_X
-        print(row[2], x)
-        height = (scale) * self.MODEL_RADIUS / (2.4 * self.MAX_Y * trapets_ind_x) + 0.04
-        width = (
-            scale * self.MODEL_RADIUS * trapets_ind_x / (2.4 * self.MAX_X)
-            + abs(row[2]) / 50
-        )
-        if x < 0 or x > 1 or y < 0 or y > 1:
-            print("Invalid label", row, x, y, width, height)
-            exit()
-        return f"{row[0]} {x} {y} {width} {height}"
+    #     y = (row[3] * trapets_ind_x) / (2.5 * self.MAX_Y) + 0.440 * self.MAX_Y
+    #     print(row[3], y)
+    #     x = (row[2] * trapets_ind_x) / (2.3 * self.MAX_X) + 0.490 * self.MAX_X
+    #     print(row[2], x)
+    #     height = (scale) * self.MODEL_RADIUS / (2.4 * self.MAX_Y * trapets_ind_x) + 0.04
+    #     width = (
+    #         scale * self.MODEL_RADIUS * trapets_ind_x / (2.4 * self.MAX_X)
+    #         + abs(row[2]) / 50
+    #     )
+    #     if x < 0 or x > 1 or y < 0 or y > 1:
+    #         print("Invalid label", row, x, y, width, height)
+    #         exit()
+    #     return f"{row[0]} {x} {y} {width} {height} "
 
     def calculate_label_by_blender(self, model_index, blender_model):
-        x, y, width, height = camera_view_bounds_2d(
+        x, y, width, height, pivot_x, pivot_y = camera_view_bounds_2d(
             bpy.context.scene, bpy.context.scene.camera, blender_model
         )
         if width < 0.05 or height < 0.05:
             return None
+        if self.with_pivot:
+            return f"{model_index} {x+width/2} {y+height/2} {width} {height} {pivot_x} {pivot_y}"
         return f"{model_index} {x+width/2} {y+height/2} {width} {height}"
 
     def save_label(self, path, data):
@@ -381,13 +407,17 @@ class BlenderChess:
             1,
         )
 
-        
         bg_img = os.path.join(self.blender_dir, "hdri", random.choice(self.hdr_imgs))
-        bpy.data.worlds["World"].node_tree.nodes["Environment Texture"].image = bpy.data.images.load(bg_img)
+        bpy.data.worlds["World"].node_tree.nodes["Environment Texture"].image = (
+            bpy.data.images.load(bg_img)
+        )
 
-        bpy.data.worlds["World"].node_tree.nodes["Mapping"].inputs[2].default_value[2] = random.uniform(0, 6.28)
-        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[1].default_value = random.uniform(0.8, 2)
-
+        bpy.data.worlds["World"].node_tree.nodes["Mapping"].inputs[2].default_value[
+            2
+        ] = random.uniform(0, 6.28)
+        bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[
+            1
+        ].default_value = random.uniform(0.8, 2)
 
         bpy.data.objects["Camera"].location.x = random.uniform(1, 2)
         # bpy.data.objects["Camera"].location.y = random.uniform(-1, 1)
@@ -397,7 +427,7 @@ class BlenderChess:
         bpy.data.objects["Camera"].rotation_euler.z = random.uniform(1.3, 1.8)
         bpy.data.objects["Camera"].data.dof.use_dof = True
         bpy.data.objects["Camera"].data.dof.focus_distance = random.uniform(1.5, 2.2)
-        #bpy.data.objects["Camera"].data.dof.aperture_fstop = random.uniform(2.2, 4)
+        # bpy.data.objects["Camera"].data.dof.aperture_fstop = random.uniform(2.2, 4)
 
     def generate_data(self, mode, iter, start_index=0):
         # make dir if not exists named mode
@@ -418,6 +448,7 @@ class BlenderChess:
 
 
 blender_chess = BlenderChess()
+blender_chess.set_with_pivot(True)
 blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
-#blender_chess.generate_data("val", blender_chess.VAL_ITER, 330)
-blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 13042)
+# blender_chess.generate_data("val", blender_chess.VAL_ITER, 330)
+# blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 13042)
