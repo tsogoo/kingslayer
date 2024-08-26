@@ -11,6 +11,12 @@ import os
 import yaml
 from robot_arm.robot import Robot
 from common.config import get_config
+import logging
+
+# Configure logging to use the systemd default (stdout)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 from lib_contour import (
     get_enhanced_image,
@@ -86,7 +92,7 @@ class Kingslayer:
         self.pts_perspective = []
         self.margin = 186
         self.CONFIDENCE_THRESHOLD = 0.6
-        self.CROP_SIZE = 840
+        self.CROP_SIZE = 864
 
         # conf
         with open(
@@ -141,9 +147,9 @@ class Kingslayer:
 
         frame_path = image
         conf = self.CONFIDENCE_THRESHOLD
-        for j in range(3):
+        for j in range(1):
             if j < 3:
-                conf = 0.7
+                conf = 0.6
             # elif j < 3:
             #     conf = 0.6
 
@@ -172,20 +178,30 @@ class Kingslayer:
                     dy = h / 7
 
                     # fill detected model with white
-                    img = cv2.rectangle(
-                        img,
-                        (int(x + dx), int(y + dy)),
-                        (int(x + w), int(y + h)),
-                        (200, 200, 200),
-                        -1,
-                    )
                     # img = cv2.rectangle(
                     #     img,
-                    #     (int(x), int(y)),
+                    #     (int(x + dx), int(y + dy)),
                     #     (int(x + w), int(y + h)),
-                    #     (0, 255, 255),
-                    #     1,
+                    #     (200, 200, 200),
+                    #     -1,
                     # )
+                    # label
+                    img = cv2.putText(
+                        img,
+                        result.names[int(result.boxes.cls[i])],
+                        (int(x), int(y)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 255, 0),
+                        1,
+                    )
+                    img = cv2.rectangle(
+                        img,
+                        (int(x), int(y)),
+                        (int(x + w), int(y + h)),
+                        (0, 255, 255),
+                        1,
+                    )
 
                     # getting center of the detected model
                     y = int(y + h * 5 / 8 + (self.CROP_SIZE - y) / 80)

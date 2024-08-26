@@ -1,0 +1,15 @@
+[Unit]
+Description=Kingslayer Service
+After=network.target
+[Service]
+User=tsogoo
+ExecStart=/usr/bin/python3 /mnt/d/work/kingslayer_new/service_kingslayer.py
+WorkingDirectory=/mnt/d/work/kingslayer_new/
+Restart=always
+RestartSec=5
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=kingslayer_service
+
+[Install]
+WantedBy=multi-user.target

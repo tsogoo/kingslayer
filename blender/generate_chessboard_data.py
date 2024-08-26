@@ -4,6 +4,7 @@ import os
 
 
 def clamp(x, minimum, maximum):
+    return x
     return max(minimum, min(x, maximum))
 
 
@@ -29,6 +30,7 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
     :rtype: :class:`Box`
     """
 
+    # Transform the mesh to camera space
     mat = cam_ob.matrix_world.normalized().inverted()
     depsgraph = bpy.context.evaluated_depsgraph_get()
     mesh_eval = me_ob.evaluated_get(depsgraph)
@@ -42,6 +44,8 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
 
     lx = []
     ly = []
+    prev_v = None
+    pivot_point = None
 
     for v in me.vertices:
         co_local = v.co
@@ -51,9 +55,6 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
             if z == 0.0:
                 lx.append(0.5)
                 ly.append(0.5)
-            # Does it make any sense to drop these?
-            # if z <= 0.0:
-            #    continue
             else:
                 frame = [(v / (v.z / z)) for v in frame]
 
@@ -65,12 +66,28 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
 
         lx.append(x)
         ly.append(y)
+        if prev_v is not None:
+            if v.co == prev_v:
+                pivot_point = {"x": x, "y": y}
+        prev_v = v.co
 
     min_x = clamp(min(lx), 0.0, 1.0)
     max_x = clamp(max(lx), 0.0, 1.0)
     min_y = clamp(min(ly), 0.0, 1.0)
     max_y = clamp(max(ly), 0.0, 1.0)
 
+    # Get pivot point location in camera space
+    if pivot_point is None:
+        pivot_point = mat @ me_ob.location
+        pivot_point = {"x": pivot_point.x, "y": pivot_point.y, "z": pivot_point.z}
+    if camera_persp:
+        if z != 0.0:
+            frame = [(v / (v.z / z)) for v in frame]
+
+    pivot_x = pivot_point["x"]
+    pivot_y = pivot_point["y"]
+
+    # Clear the mesh evaluation to prevent memory leaks
     mesh_eval.to_mesh_clear()
 
     r = scene.render
@@ -79,16 +96,15 @@ def camera_view_bounds_2d(scene, cam_ob, me_ob):
     dim_y = r.resolution_y * fac
 
     # Sanity check
-    if round((max_x - min_x) * dim_x) == 0 or round((max_y - min_y) * dim_y) == 0:
-        return (0, 0, 0, 0, 0, 0)
-
+    # if round((max_x - min_x) * dim_x) == 0 or round((max_y - min_y) * dim_y) == 0:
+    #     return (0, 0, 0, 0, 0, 0)
     return (
-        round(min_x * dim_x) / r.resolution_x,  # X
-        round(dim_y - max_y * dim_y) / r.resolution_y,  # Y
-        round((max_x - min_x) * dim_x) / r.resolution_x,  # Width
-        round((max_y - min_y) * dim_y) / r.resolution_y,  # Height
-        me_ob.location.x,
-        me_ob.location.y,
+        (min_x * dim_x) / r.resolution_x,  # X
+        (dim_y - max_y * dim_y) / r.resolution_y,  # Y
+        ((max_x - min_x) * dim_x) / r.resolution_x,  # Width
+        ((max_y - min_y) * dim_y) / r.resolution_y,  # Height
+        (pivot_x * dim_x) / r.resolution_x,
+        (dim_y - pivot_y * dim_y) / r.resolution_y,  # pivot_y
     )
 
 
@@ -380,10 +396,21 @@ class BlenderChess:
         x, y, width, height, pivot_x, pivot_y = camera_view_bounds_2d(
             bpy.context.scene, bpy.context.scene.camera, blender_model
         )
-        if width < 0.05 or height < 0.05:
+        if (
+            x + width < width * 0.8
+            or y + height < height * 0.8
+            or x + width * 0.8 > 1
+            or y + height * 0.8 > 1
+        ):
             return None
+        x = 1 if x + width / 2 > 1 else round(x + width / 2, 4)
+        y = 1 if y + height / 2 > 1 else round(y + height / 2, 4)
+        width = round(width, 4)
+        height = round(height, 4)
+        pivot_x = 1 if pivot_x + width / 2 > 1 else round(pivot_x + width / 2, 4)
+        pivot_y = 1 if pivot_y + height / 2 > 1 else round(pivot_y + height / 2, 4)
         if self.with_pivot:
-            return f"{model_index} {x+width/2} {y+height/2} {width} {height} {pivot_x} {pivot_y}"
+            return f"{model_index} {x} {y} {width} {height} {pivot_x} {pivot_y}"
         return f"{model_index} {x+width/2} {y+height/2} {width} {height}"
 
     def save_label(self, path, data):
@@ -449,6 +476,9 @@ class BlenderChess:
 
 blender_chess = BlenderChess()
 blender_chess.set_with_pivot(True)
-blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
+# blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
 # blender_chess.generate_data("val", blender_chess.VAL_ITER, 330)
+if blender_chess.with_pivot:
+    blender_chess.generate_data("torch_train", blender_chess.TRAIN_ITER, 0)
+
 # blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 13042)

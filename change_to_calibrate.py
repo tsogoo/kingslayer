@@ -1,5 +1,4 @@
 import argparse
-import requests
 import json
 
 
@@ -13,20 +12,11 @@ parser.add_argument(
     help="Image file or directory to predict",
 )
 
-args = parser.parse_args()
-webcam_ip = args.webcam_ip
-
-image_url = f"http://{webcam_ip}/photo.jpg"
-img_data = requests.get(image_url).content
-with open("frame.jpg", "wb") as handler:
-    handler.write(img_data)
-    handler.close()
-
 with open("status.json", "r") as f:
     status = json.load(f)
 
-    status["status"] = "started123456789"
+    status["status"] = "calibrate_board"
     with open("status.json", "w") as f:
         json.dump(status, f)
     f.close()
-    print("status changed to started")
+    print("status changed to calibrate_board")

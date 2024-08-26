@@ -27,22 +27,24 @@ def check_pivot_point_position(input_image, output_image, width, labels):
         )
         cv2.rectangle(image_copy, (x1, y1), (x2, y2), (0, 255, 0), 1)
 
-        pivot_x, pivot_y = (
-            int((label[5] - label[3] / 2) * width),
-            int((label[6] - label[4] / 2) * width),
-        )  # pivot point
-        cv2.circle(image_copy, (pivot_x, pivot_y), 2, (0, 0, 255), -1)
+        if len(label) > 5:
+            pivot_x, pivot_y = (
+                int((label[5] - label[3] / 2) * width),
+                int((label[6] - label[4] / 2) * width),
+            )  # pivot point
+            cv2.circle(image_copy, (pivot_x, pivot_y), 2, (0, 0, 255), -1)
 
     # Save image
     cv2.imwrite(output_image, image_copy)
 
 
 for i in range(20):
-    input_image = f"cm_datasets/test/images/{i:04d}" + ".png"
-    output_image = f"cm_datasets/test/pivot/{i:04d}" + ".png"
+    mode = "test"
+    input_image = f"cm_datasets/{mode}/images/{i:04d}" + ".png"
+    output_image = f"cm_datasets/{mode}/pivot/{i:04d}" + ".png"
     width = 840
     labels = []
-    with open(f"cm_datasets/test/labels/{i:04d}.txt") as f:
+    with open(f"cm_datasets/{mode}/labels/{i:04d}.txt") as f:
         # loop all lines
         #
         for line in f:
