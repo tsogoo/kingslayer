@@ -92,7 +92,7 @@ class Kingslayer:
         self.pts_perspective = []
         self.margin = 186
         self.CONFIDENCE_THRESHOLD = 0.6
-        self.CROP_SIZE = 864
+        self.CROP_SIZE = 640
 
         # conf
         with open(

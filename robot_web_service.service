@@ -3,8 +3,8 @@ Description=GCode HTTP Server
 After=network.target
 [Service]
 User=pi
-ExecStart=/usr/bin/python3 /home/pi/kingslayer/http_server.py
-WorkingDirectory=/home/pi/kingslayer/
+ExecStart=/usr/bin/python3 /home/pi/kingslayer/robot_server.py
+WorkingDirectory=/home/pi/robot_server/
 Restart=always
 RestartSec=5
 StandardOutput=/tmp/kingslayer_service.log

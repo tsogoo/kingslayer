@@ -1,0 +1,15 @@
+[Unit]
+Description=GCode HTTP Server
+After=network.target
+[Service]
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/kingslayer/server_kingslayer.py
+WorkingDirectory=/home/pi/kingslayer/
+Restart=always
+RestartSec=5
+StandardOutput=/tmp/kingslayer_service.log
+StandardError=/tmp/kingslayer_service.log
+SyslogIdentifier=kingslayer_gcode
+
+[Install]
+WantedBy=multi-user.target

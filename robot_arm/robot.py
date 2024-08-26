@@ -397,7 +397,9 @@ class Robot:
                 moves.append(RobotMove(RobotTask.Place, x_d, y_d))
 
         self.move_handle(moves, turn)
-        requests.post("http://192.168.1.45:8000/", json={"commands": self.commands})
+        requests.post(
+            get_config(self.config, "urls:klipper"), json={"commands": self.commands}
+        )
         # response = requests.get(
         #     "http://192.168.1.19:8000/", {"commands": self.commands}
         # )
