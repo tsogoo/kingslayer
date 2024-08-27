@@ -9,8 +9,9 @@ from torch.utils.data import DataLoader, Dataset
 import os
 from PIL import Image
 import numpy as np
+from tqdm import tqdm
 
-img_width = 840
+img_width = 640
 
 
 # Custom Dataset Definition
@@ -21,6 +22,15 @@ class CustomDataset(Dataset):
         self.imgs = list(sorted(os.listdir(os.path.join(root, "images"))))
         self.annotations = list(sorted(os.listdir(os.path.join(root, "labels"))))
 
+        # Filter out files with empty labels
+        valid_data = []
+        for img, ann in zip(self.imgs, self.annotations):
+            ann_path = os.path.join(root, "labels", ann)
+            if os.path.getsize(ann_path) > 0:
+                valid_data.append((img, ann))
+
+        self.imgs, self.annotations = zip(*valid_data)
+
     def __getitem__(self, idx):
         # Load images and annotations
         img_path = os.path.join(self.root, "images", self.imgs[idx])
@@ -28,7 +38,7 @@ class CustomDataset(Dataset):
 
         img = Image.open(img_path).convert("RGB")
         boxes_and_labels = np.loadtxt(annotation_path, delimiter=" ").reshape(
-            -1, 5
+            -1, 7
         )  # [class_id, x_center, y_center, width, height]
 
         # Extract labels and bounding boxes
@@ -77,16 +87,24 @@ class CustomDataset(Dataset):
         return len(self.imgs)
 
 
-# Define transformations
+# Define transformations with augmentation
 transform = T.Compose(
     [
-        T.ToTensor(),
-        T.Resize((img_width, img_width)),
+        # T.RandomHorizontalFlip(0.5),  # 50% chance of horizontal flip
+        T.RandomApply(
+            [T.GaussianBlur(3)], p=0.3
+        ),  # Apply Gaussian blur with kernel size 3
+        T.ColorJitter(
+            brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1
+        ),  # Random color adjustments
+        # T.RandomRotation(degrees=15),  # Random rotation between -15 and 15 degrees
+        T.Grayscale(),  # Converting image to grayscale
+        T.ToTensor(),  # Convert image to tensor
     ]
 )
 
-# Load custom dataset
-dataset = CustomDataset(root="cm_datasets/train", transforms=transform)
+# Load custom dataset with augmentation
+dataset = CustomDataset(root="datasets_640/torch_train", transforms=transform)
 train_loader = DataLoader(
     dataset,
     batch_size=8,
@@ -119,12 +137,15 @@ optimizer = torch.optim.SGD(
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
 # Training loop
-num_epochs = 5
+num_epochs = 100
 for epoch in range(num_epochs):
     model.train()
     running_loss = 0.0
+    progress_bar = tqdm(
+        train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch"
+    )
 
-    for images, targets in train_loader:
+    for images, targets in progress_bar:
         images = [image.to(device) for image in images]
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -138,7 +159,8 @@ for epoch in range(num_epochs):
         optimizer.step()
 
         running_loss += losses.item()
-
+        # Update the progress bar with current loss
+        progress_bar.set_postfix({"loss": losses.item()})
     # Step the learning rate scheduler
     lr_scheduler.step()
 
@@ -147,5 +169,3 @@ for epoch in range(num_epochs):
 
 
 print("Training complete.")
-
-# Save the fine-tuned model

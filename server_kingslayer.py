@@ -1,5 +1,6 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import os
+import time
 
 
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -36,6 +37,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             query = self.path.split("?")[1]
             webcam_ip = query.split("=")[1]
             os.system(f"python3 change_to_started.py --webcam_ip={webcam_ip}")
+            time.sleep(1)
             response = b"Started moving"
         elif self.path.startswith("/calibrate"):
             os.system("python3 change_to_calibrate.py")

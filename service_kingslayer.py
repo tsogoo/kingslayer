@@ -126,14 +126,34 @@ class Kingslayer:
         self.chess_engine_helper.initialize_board(None)
 
     def augment_image(self, img):
-
-        augmented = cv2.imread(img)
+        return img
+        image = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
         # augmented = get_enhanced_image(augmented)
         # augmented = get_blurry_image(augmented)
         # augmented = get_contoured_image(augmented)
-        augmented = get_noisy_image(augmented)
-        cv2.imwrite("augmented.jpg", augmented)
-        return "augmented.jpg"
+        # augmented = get_noisy_image(augmented)
+        min_val = np.min(image)
+        max_val = np.max(image)
+
+        # Apply the contrast stretching
+        autocontrast = (image - min_val) * (255 / (max_val - min_val))
+
+        # Convert to uint8
+        autocontrast = np.uint8(autocontrast)
+        # Save or display the result
+        cv2.imwrite("auto_contrasted.jpg", autocontrast)
+        return "auto_contrasted.jpg"
+
+    def auto_contast(self, image):
+        print("===auto_contrast===")
+        min_val = np.min(image)
+        max_val = np.max(image)
+
+        # Apply the contrast stretching
+        autocontrast = (image - min_val) * (255 / (max_val - min_val))
+
+        # Convert to uint8
+        return np.uint8(autocontrast)
 
     def converted_robot_point(self, xy):
         w1 = self.robot.board_square_size * 8 + 2 * self.robot.board_margin_size
@@ -144,12 +164,11 @@ class Kingslayer:
         return (x, y)
 
     def detect_models(self, image):
-
         frame_path = image
         conf = self.CONFIDENCE_THRESHOLD
         for j in range(1):
             if j < 3:
-                conf = 0.6
+                conf = 0.7
             # elif j < 3:
             #     conf = 0.6
 
@@ -193,6 +212,16 @@ class Kingslayer:
                         cv2.FONT_HERSHEY_SIMPLEX,
                         0.5,
                         (0, 255, 0),
+                        1,
+                    )
+                    # put confidence text on image
+                    img = cv2.putText(
+                        img,
+                        str(round(result.boxes.conf[i].item(), 2)),
+                        (int(x), int(y + 30)),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (255, 0, 0),
                         1,
                     )
                     img = cv2.rectangle(
@@ -280,6 +309,7 @@ class Kingslayer:
             int(yoffset - self.margin) : int(yend + self.margin),
             int(xoffset - self.margin) : int(xend + self.margin),
         ]
+        color = self.auto_contast(color)
         cv2.imwrite("im.jpg", color)
 
         # gray = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)
@@ -289,7 +319,7 @@ class Kingslayer:
         reverse = cv2.bitwise_not(color)
         # for dark cv2.threshold(reverse, 120, 255, 0)
         # for light cv2.threshold(reverse, 60, 255, 0)
-        ret, gray = cv2.threshold(reverse, 80, 255, 0)
+        ret, gray = cv2.threshold(reverse, 85, 255, 0)
         contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = find_max_contour_area(contours)
         # gray = cv2.drawContours(gray, contours, -1, (0, 255, 0), 2).copy()
@@ -333,7 +363,7 @@ class Kingslayer:
         h = yend - ystart
         w = xend - xstart
 
-        cv2.imwrite("im.jpg", img)
+        cv2.imwrite("im2.jpg", img)
         # cv2.rectangle(img, (xstart, ystart), (xend, yend), (0, 255, 255), 1)
         # cv2.rectangle(
         #     color, (int(min_x), int(min_y)), (int(max_x), int(max_y)), (0, 255, 255), 1
@@ -366,6 +396,7 @@ class Kingslayer:
             image, save=False, imgsz=self.CROP_SIZE, conf=0.7
         )
         # Load the image using OpenCV
+
         img = cv2.imread(image)
         img = get_blurry_image(img)
 
@@ -431,13 +462,13 @@ class Kingslayer:
 
         # best_move = "a1a4"
         print(best_move)
-        self.robot.move(
-            self.chess_engine_helper,
-            self,
-            best_move,
-            self.chess_engine_helper.board.turn,
-        )
-        print(self.robot.commands)
+        # self.robot.move(
+        #     self.chess_engine_helper,
+        #     self,
+        #     best_move,
+        #     self.chess_engine_helper.board.turn,
+        # )
+        # print(self.robot.commands)
         return best_move
 
     def get_movement(self, conf):

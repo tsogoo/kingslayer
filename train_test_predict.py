@@ -9,7 +9,7 @@ import cv2
 from PIL import Image
 import numpy as np
 
-img_width = 840
+img_width = 640
 
 
 # Define transformations
@@ -38,7 +38,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 model.to(device)
 
 # load fasterrcnn_custom.pth model
-model.load_state_dict(torch.load("fasterrcnn_custom_5.pth"))
+model.load_state_dict(torch.load("fasterrcnn_custom_4.pth"))
 model.eval()
 # Define optimizer and learning rate scheduler
 optimizer = torch.optim.SGD(
