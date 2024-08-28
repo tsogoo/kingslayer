@@ -30,8 +30,8 @@ robot:
     square_size: 41
     margin_size: 20
   out:
-    x: -115
-    y: 220
+    x: 400
+    y: 180
     z: -60
   in:
     x: -115

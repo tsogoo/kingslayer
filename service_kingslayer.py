@@ -21,6 +21,8 @@ logging.basicConfig(
 from lib_contour import (
     get_enhanced_image,
     get_contoured_image,
+    get_gray_image,
+    get_sharpened_image,
     get_blurry_image,
     get_noisy_image,
 )
@@ -91,7 +93,7 @@ class Kingslayer:
         self.pts_square = []
         self.pts_perspective = []
         self.margin = 186
-        self.CONFIDENCE_THRESHOLD = 0.6
+        self.CONFIDENCE_THRESHOLD = 0.7
         self.CROP_SIZE = 640
 
         # conf
@@ -177,7 +179,7 @@ class Kingslayer:
             print(frame_path)
             chess_results = self.chess_model.predict(
                 self.augment_image(frame_path),
-                save=True,
+                save=False,
                 imgsz=self.CROP_SIZE,
                 conf=conf,
             )
@@ -186,7 +188,7 @@ class Kingslayer:
 
             # if len(chess_results) == 0 and conf <= self.CONFIDENCE_THRESHOLD:
             #     return
-
+            print("=============detected models")
             for result in chess_results:
                 # if len(result.boxes.xywh) == 0 and conf <= self.CONFIDENCE_THRESHOLD:
                 #     return
@@ -326,7 +328,7 @@ class Kingslayer:
 
         # contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # contours = find_max_contour_area(contours)
-
+        print("=====writing gray image")
         cv2.imwrite("gray.jpg", gray)
 
         c = contours[0]
@@ -362,7 +364,7 @@ class Kingslayer:
         xstart = int(pts[0][0] + xoffset - self.margin)
         h = yend - ystart
         w = xend - xstart
-
+        print("======writing im2.jpg")
         cv2.imwrite("im2.jpg", img)
         # cv2.rectangle(img, (xstart, ystart), (xend, yend), (0, 255, 255), 1)
         # cv2.rectangle(
@@ -392,13 +394,12 @@ class Kingslayer:
 
     def process_from_image(self, image):
 
-        board_results = self.board_model.predict(
-            image, save=False, imgsz=self.CROP_SIZE, conf=0.7
-        )
         # Load the image using OpenCV
-
         img = cv2.imread(image)
-        img = get_blurry_image(img)
+        board_results = self.board_model.predict(
+            img, save=False, imgsz=self.CROP_SIZE, conf=0.7
+        )
+        img = get_gray_image(img)
 
         cropped_image = None
         for result in board_results:
@@ -462,13 +463,13 @@ class Kingslayer:
 
         # best_move = "a1a4"
         print(best_move)
-        # self.robot.move(
-        #     self.chess_engine_helper,
-        #     self,
-        #     best_move,
-        #     self.chess_engine_helper.board.turn,
-        # )
-        # print(self.robot.commands)
+        self.robot.move(
+            self.chess_engine_helper,
+            self,
+            best_move,
+            self.chess_engine_helper.board.turn,
+        )
+        print(self.robot.commands)
         return best_move
 
     def get_movement(self, conf):

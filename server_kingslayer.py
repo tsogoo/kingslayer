@@ -37,7 +37,21 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             query = self.path.split("?")[1]
             webcam_ip = query.split("=")[1]
             os.system(f"python3 change_to_started.py --webcam_ip={webcam_ip}")
-            time.sleep(1)
+            time.sleep(4)
+            try:
+                query = self.path.split("?")[1]
+                image = query.split("=")[2]
+                with open(image, "rb") as image_file:
+                    self.send_response(200)
+                    self.send_header("Content-type", "image/jpeg")
+                    self.end_headers()
+                    self.wfile.write(image_file.read())
+
+            except FileNotFoundError:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"Image not found")
+            return
             response = b"Started moving"
         elif self.path.startswith("/calibrate"):
             os.system("python3 change_to_calibrate.py")
@@ -52,7 +66,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
 
 def run(server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8000):
-    server_address = ("", port)
+    server_address = ("0.0.0.0", port)
     httpd = server_class(server_address, handler_class)
     print(f"Starting HTTP server on port {port}")
     httpd.serve_forever()
