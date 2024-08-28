@@ -38,10 +38,11 @@ class Robot:
     def calibrate_board(self):
         self.commands = [
             "G28",
-            # "SET_GCODE_OFFSET X={} Y={}".format(
-            #     get_config(self.config, 'board:x'),
-            #     get_config(self.config, 'board:y')
-            # ),
+            "SET_GCODE_OFFSET X={} Y={}".format(
+                # get_config(self.config, "board:x"), get_config(self.config, "board:y")
+                0,
+                0,
+            ),
             "G1 X{} Y{} Z{} F{}".format(
                 (
                     int(get_config(self.config, "board:x"))
@@ -51,8 +52,8 @@ class Robot:
                     int(get_config(self.config, "board:y"))
                     - int(get_config(self.config, "board:margin_size"))
                 ),
-                get_config(self.config, "board:figure_z"),
-                self.xy_speed(),
+                int(get_config(self.config, "board:z")) + 20,
+                int(self.xy_speed()) - 4000,
             ),
             "G1 X{} Y{} Z{} F{}".format(
                 (
@@ -64,8 +65,8 @@ class Robot:
                     int(get_config(self.config, "board:y"))
                     - int(get_config(self.config, "board:margin_size"))
                 ),
-                get_config(self.config, "board:figure_z"),
-                self.xy_speed(),
+                int(get_config(self.config, "board:z")) + 20,
+                int(self.xy_speed()) - 4000,
             ),
             "G1 X{} Y{} Z{} F{}".format(
                 (
@@ -78,8 +79,8 @@ class Robot:
                     + int(get_config(self.config, "board:margin_size"))
                     + 8 * int(get_config(self.config, "board:square_size"))
                 ),
-                get_config(self.config, "board:figure_z"),
-                self.xy_speed(),
+                int(get_config(self.config, "board:z")) + 20,
+                int(self.xy_speed()) - 4000,
             ),
             "G1 X{} Y{} Z{} F{}".format(
                 (
@@ -91,8 +92,8 @@ class Robot:
                     + int(get_config(self.config, "board:margin_size"))
                     + 8 * int(get_config(self.config, "board:square_size"))
                 ),
-                get_config(self.config, "board:figure_z"),
-                self.xy_speed(),
+                int(get_config(self.config, "board:z")) + 20,
+                int(self.xy_speed()) - 4000,
             ),
             "G1 X{} Y{} Z{} F{}".format(
                 (
@@ -103,8 +104,8 @@ class Robot:
                     int(get_config(self.config, "board:y"))
                     - int(get_config(self.config, "board:margin_size"))
                 ),
-                get_config(self.config, "board:figure_z"),
-                self.xy_speed(),
+                int(get_config(self.config, "board:z")) + 20,
+                int(self.xy_speed()) - 4000,
             ),
             "G1 z{}".format(get_config(self.config, "board:safe_z")),
             "G1 X{}".format(0),

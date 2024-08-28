@@ -76,9 +76,30 @@ def get_noisy_image(image):
     return enhanced
 
 
+def get_sharpened_image(image):
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # resized_image = cv2.resize(gray, (1920, 1280), interpolation=cv2.INTER_LANCZOS4)
+
+    # Define a sharpening kernel
+    kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
+
+    # Apply the sharpening kernel to grayscale image
+    enhanced = cv2.filter2D(gray, -1, kernel)
+    enhanced = cv2.fastNlMeansDenoising(
+        enhanced, None, h=10, templateWindowSize=7, searchWindowSize=21
+    )
+
+    return enhanced
+
+
+def get_gray_image(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return gray
+
+
 def get_blurry_image(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
     # Canny Edge Detection
 
     clahe = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(3, 3))

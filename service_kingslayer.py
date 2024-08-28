@@ -321,7 +321,7 @@ class Kingslayer:
         reverse = cv2.bitwise_not(color)
         # for dark cv2.threshold(reverse, 120, 255, 0)
         # for light cv2.threshold(reverse, 60, 255, 0)
-        ret, gray = cv2.threshold(reverse, 85, 255, 0)
+        ret, gray = cv2.threshold(reverse, 75, 225, 0)
         contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = find_max_contour_area(contours)
         # gray = cv2.drawContours(gray, contours, -1, (0, 255, 0), 2).copy()
@@ -392,9 +392,7 @@ class Kingslayer:
         )
         return output_coordinates[0]
 
-    def process_from_image(self, image):
-
-        # Load the image using OpenCV
+    def get_board_corners(self, image):
         img = cv2.imread(image)
         board_results = self.board_model.predict(
             img, save=False, imgsz=self.CROP_SIZE, conf=0.7
@@ -413,7 +411,12 @@ class Kingslayer:
             cropped_image = self.init_perspective_data(
                 self.x, self.y, w, h, self.xend, self.yend, img
             )
-            break
+            return cropped_image
+
+    def process_from_image(self, image):
+
+        # Load the image using OpenCV
+        cropped_image = self.get_board_corners(image)
 
         self.models = []
         M = cv2.getPerspectiveTransform(
@@ -436,8 +439,6 @@ class Kingslayer:
         warped_image_path = "warped_image.jpg"
         cv2.imwrite(warped_image_path, cropped_image)
         self.detect_models(warped_image_path)
-
-        print(x, y, w, h)
 
         conf = self.generate_chess_board_array()
         conf = list(map(list, zip(*conf[::-1])))
