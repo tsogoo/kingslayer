@@ -39,7 +39,7 @@ with open("status.json", "r") as f:
     with open("status.json", "w") as f:
         json.dump(status, f)
     f.close()
-image_url = f"http://{webcam_ip}/photoaf.jpg"
+image_url = f"http://{webcam_ip}/photo.jpg"
 img_data = requests.get(image_url).content
 with open("frame.jpg", "wb") as handler:
     handler.write(img_data)
