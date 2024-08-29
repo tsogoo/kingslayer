@@ -35,6 +35,13 @@ webcam_ip = args.webcam_ip
 print(f"webcam_ip: {webcam_ip}")
 print(f"status: {args.status}")
 
+image_url = f"http://{webcam_ip}/photo.jpg"
+img_data = requests.get(image_url).content
+with open("frame.jpg", "wb") as handler:
+    handler.write(img_data)
+    handler.close()
+
+
 with open("status.json", "r") as f:
     status = json.load(f)
     if args.status == "move":
@@ -46,10 +53,4 @@ with open("status.json", "r") as f:
     with open("status.json", "w") as f:
         json.dump(status, f)
     f.close()
-image_url = f"http://{webcam_ip}/photo.jpg"
-img_data = requests.get(image_url).content
-with open("frame.jpg", "wb") as handler:
-    handler.write(img_data)
-    handler.close()
-
     print("status changed to started")
