@@ -2,6 +2,7 @@ from engine.helper import ChessEngineHelper
 import chess
 from engine.detect import Detector
 import time
+import chess.svg
 
 # example
 # helper = ChessEngineHelper()
@@ -138,12 +139,18 @@ def test_gcode():
     bot.task_handle(RobotTask.Buzzer)
 
 def chess_test():
+
+    import paho.mqtt.client as mqtt
+    client = mqtt.Client()
+    client.connect('localhost')
+
     with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
         engine.configure({"Skill Level": 9})
-        board = chess.Board("4k3/8/8/8/8/8/8/4K2R w KQkq")
+        # board = chess.Board("4k3/8/8/8/8/8/8/4K2R w KQkq")
+        board = chess.Board()
 
         while not board.is_game_over():
-            print(board)
+
             if board.turn == chess.WHITE:
                 human_move = input("Enter your move (e2e4): ")
                 try:
@@ -157,6 +164,13 @@ def chess_test():
                     print('checked')
                 result = engine.play(board, chess.engine.Limit(time=0.1))
                 board.push(result.move)
+            
+            # Generate the SVG
+            board_svg = chess.svg.board(board)
+
+            client.publish(
+                topic='chess', payload=board_svg
+            )
 
 def test_create_video():
     from engine.detect import create_video
@@ -164,6 +178,6 @@ def test_create_video():
 
 # test_detect_from_video(check_idx=1)
 # test_detect()
-# chess_test()
+chess_test()
 # test_create_video()
-test_gcode()
+# test_gcode()
