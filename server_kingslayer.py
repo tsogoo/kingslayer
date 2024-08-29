@@ -45,8 +45,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
                 )
 
             else:
-                command = "python3 change_status.py --webcam_ip={} --status={}".format(
-                    webcamera_url, status
+                command = "python3 change_status.py --webcam_ip={} --status={} --is_white={}".format(
+                    webcamera_url, status, query.split("=")[3].split("&")[0]
                 )
             os.system(command)
             print(command)

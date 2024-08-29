@@ -89,6 +89,7 @@ def find_max_contour_area(contours):
 
 class Kingslayer:
     def __init__(self, board_weight, chess_model_weight):
+        self.is_white = True
         self.models = []
         self.pts_square = None
         self.pts_perspective = None
@@ -237,6 +238,7 @@ class Kingslayer:
                     )
                     # cv2 circle on x , y with radius 3
         self.print_detected_board()
+        cv2.imwrite("detected_models.jpg", img)
         return img
 
     def print_detected_board(self):
@@ -388,7 +390,7 @@ class Kingslayer:
         img = cv2.imread(image)
         gray = get_gray_image(img)
 
-        if self.detected_board_data:
+        if np.any(self.pts):
             cropped_image = self.init_perspective_data(
                 self.detected_board_data[0],
                 self.detected_board_data[1],
@@ -484,12 +486,13 @@ class Kingslayer:
             2,
         )
         cv2.imwrite("board_result.jpg", img)
-        # self.robot.move(
-        #     self.chess_engine_helper,
-        #     self,
-        #     best_move,
-        #     self.chess_engine_helper.board.turn,
-        # )
+        print(best_move)
+        self.robot.move(
+            self.chess_engine_helper,
+            self,
+            best_move,
+            self.chess_engine_helper.board.turn,
+        )
         print(self.robot.commands)
         return best_move
 
@@ -509,7 +512,8 @@ class Kingslayer:
             if empty > 0:
                 fen_row += str(empty)
             fen_rows.append(fen_row)
-        fen = "/".join(fen_rows) + " w KQkq - 0 1"
+        who = "w" if self.is_white else "b"
+        fen = "/".join(fen_rows) + f" {who} KQkq - 0 1"
         self.chess_engine_helper.initialize_board(fen)
         best_move = self.chess_engine_helper.get_best_move()
         return best_move
@@ -627,6 +631,7 @@ while True:
                     if status["status"] == "init_camera":
                         chess.init_camera(image, status["light_contour_number"])
                     else:
+                        chess.is_white = status["is_white"]
                         best_move = chess.process_from_image(image)
                 except Exception as e:
                     print("Error:", e)

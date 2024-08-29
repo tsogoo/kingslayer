@@ -24,6 +24,12 @@ parser.add_argument(
     default="80",
     help="Light Contour Number",
 )
+parser.add_argument(
+    "--is_white",
+    required=False,
+    default="1",
+    help="Is White",
+)
 args = parser.parse_args()
 webcam_ip = args.webcam_ip
 print(f"webcam_ip: {webcam_ip}")
@@ -33,6 +39,7 @@ with open("status.json", "r") as f:
     status = json.load(f)
     if args.status == "move":
         status["status"] = "started123456789"
+        status["is_white"] = args.is_white.lower() in ["true", "1"]
     else:
         status["status"] = "init_camera"
         status["light_contour_number"] = int(args.light_contour_number)
