@@ -44,6 +44,7 @@ with open("frame.jpg", "wb") as handler:
 
 with open("status.json", "r") as f:
     status = json.load(f)
+    status["image_url"] = image_url
     if args.status == "move":
         status["status"] = "started123456789"
         status["is_white"] = args.is_white.lower() in ["true", "1"]
