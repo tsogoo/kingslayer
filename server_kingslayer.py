@@ -32,15 +32,28 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         elif self.path == "/service_restart":
             os.system("sudo systemctl restart kingslayer_service.service")
             response = b"Restarted service"
-        elif self.path.startswith("/move"):
+        elif self.path.startswith("/move") or self.path.startswith("/init_camera"):
             # get the webcam ip from query string
             query = self.path.split("?")[1]
-            webcam_ip = query.split("=")[1]
-            os.system(f"python3 change_to_started.py --webcam_ip={webcam_ip}")
+            webcamera_url = query.split("=")[1].split("&")[0]
+            status = self.path.split("?")[0].split("/")[1]
+            print(f"=========={status}==========")
+            if self.path.startswith("/init_camera"):
+                light_contour_number = query.split("=")[3].split("&")[0]
+                command = "python3 change_status.py --webcam_ip={} --status={} --light_contour_number={}".format(
+                    webcamera_url, status, light_contour_number
+                )
+
+            else:
+                command = "python3 change_status.py --webcam_ip={} --status={}".format(
+                    webcamera_url, status
+                )
+            os.system(command)
+            print(command)
             time.sleep(4)
             try:
-                query = self.path.split("?")[1]
-                image = query.split("=")[2]
+                image = query.split("=")[2].split("&")[0]
+
                 with open(image, "rb") as image_file:
                     self.send_response(200)
                     self.send_header("Content-type", "image/jpeg")
@@ -52,7 +65,6 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"Image not found")
             return
-            response = b"Started moving"
         elif self.path.startswith("/calibrate"):
             os.system("python3 change_to_calibrate.py")
             response = b"Started calibration"
