@@ -89,13 +89,16 @@ def find_max_contour_area(contours):
 
 class Kingslayer:
     def __init__(self, board_weight, chess_model_weight):
+        self.is_white = True
         self.models = []
-        self.pts_square = []
-        self.pts_perspective = []
+        self.pts_square = None
+        self.pts_perspective = None
+        self.pts = None
         self.margin = 186
         self.CONFIDENCE_THRESHOLD = 0.7
         self.CROP_SIZE = 640
-
+        self.detected_board_data = None
+        self.light_contour_number = 80
         # conf
         with open(
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.yaml"), "r"
@@ -129,22 +132,6 @@ class Kingslayer:
 
     def augment_image(self, img):
         return img
-        image = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
-        # augmented = get_enhanced_image(augmented)
-        # augmented = get_blurry_image(augmented)
-        # augmented = get_contoured_image(augmented)
-        # augmented = get_noisy_image(augmented)
-        min_val = np.min(image)
-        max_val = np.max(image)
-
-        # Apply the contrast stretching
-        autocontrast = (image - min_val) * (255 / (max_val - min_val))
-
-        # Convert to uint8
-        autocontrast = np.uint8(autocontrast)
-        # Save or display the result
-        cv2.imwrite("auto_contrasted.jpg", autocontrast)
-        return "auto_contrasted.jpg"
 
     def auto_contast(self, image):
         print("===auto_contrast===")
@@ -250,8 +237,9 @@ class Kingslayer:
                         )
                     )
                     # cv2 circle on x , y with radius 3
-            self.print_detected_board()
-            cv2.imwrite(frame_path, img)
+        self.print_detected_board()
+        cv2.imwrite("detected_models.jpg", img)
+        return img
 
     def print_detected_board(self):
         # set blank image
@@ -305,7 +293,7 @@ class Kingslayer:
         # save image with name board_file.jpg
         cv2.imwrite("board_file.jpg", img)
 
-    def init_perspective_data(self, xoffset, yoffset, w, h, xend, yend, img):
+    def init_perspective_data(self, xoffset, yoffset, xend, yend, w, h, img):
         # crop image with x,y,w,h
         color = img[
             int(yoffset - self.margin) : int(yend + self.margin),
@@ -321,7 +309,9 @@ class Kingslayer:
         reverse = cv2.bitwise_not(color)
         # for dark cv2.threshold(reverse, 120, 255, 0)
         # for light cv2.threshold(reverse, 60, 255, 0)
-        ret, gray = cv2.threshold(reverse, 75, 225, 0)
+        print("=====writing reverse image")
+        print(self.light_contour_number)
+        ret, gray = cv2.threshold(reverse, self.light_contour_number, 255, 0)
         contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         contours = find_max_contour_area(contours)
         # gray = cv2.drawContours(gray, contours, -1, (0, 255, 0), 2).copy()
@@ -329,19 +319,22 @@ class Kingslayer:
         # contours, _ = cv2.findContours(gray, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         # contours = find_max_contour_area(contours)
         print("=====writing gray image")
-        cv2.imwrite("gray.jpg", gray)
 
-        c = contours[0]
-        peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.04 * peri, True)
-        pts = find_outer_corners(gray, approx)
+        cv2.imwrite("gray.jpg", gray)
+        print("======debugggggiin")
+        print(self.pts)
+        if not np.any(self.pts):
+            c = contours[0]
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+            self.pts = find_outer_corners(gray, approx)
 
         min_x = 10000
         min_y = 10000
         max_x = 0
         max_y = 0
-
-        for p in pts:
+        print("======debugggggiin2")
+        for p in self.pts:
             if p[0] < min_x:
                 min_x = p[0]
             if p[0] > max_x:
@@ -358,10 +351,11 @@ class Kingslayer:
                 (255, 0, 0),
                 -1,
             )
-        yend = int((pts[0][1] + pts[1][1]) / 2 + yoffset - self.margin)
-        xend = int(pts[1][0] + xoffset - self.margin)
-        ystart = int((pts[2][1] + pts[3][1]) / 2 + yoffset - self.margin)
-        xstart = int(pts[0][0] + xoffset - self.margin)
+        print("======debugggggiin")
+        yend = int((self.pts[0][1] + self.pts[1][1]) / 2 + yoffset - self.margin)
+        xend = int(self.pts[1][0] + xoffset - self.margin)
+        ystart = int((self.pts[2][1] + self.pts[3][1]) / 2 + yoffset - self.margin)
+        xstart = int(self.pts[0][0] + xoffset - self.margin)
         h = yend - ystart
         w = xend - xstart
         print("======writing im2.jpg")
@@ -370,17 +364,16 @@ class Kingslayer:
         # cv2.rectangle(
         #     color, (int(min_x), int(min_y)), (int(max_x), int(max_y)), (0, 255, 255), 1
         # )
-
         self.pts_square = np.float32(
             [[xend - w, yend - w], [xend - w, yend], [xend, yend - w], [xend, yend]]
         )
 
         self.pts_perspective = np.float32(
             [
-                [pts[2][0], pts[2][1]],
-                [pts[0][0], pts[0][1]],
-                [pts[3][0], pts[3][1]],
-                [pts[1][0], pts[1][1]],
+                [self.pts[2][0], self.pts[2][1]],
+                [self.pts[0][0], self.pts[0][1]],
+                [self.pts[3][0], self.pts[3][1]],
+                [self.pts[1][0], self.pts[1][1]],
             ]
         )
         return color
@@ -393,13 +386,28 @@ class Kingslayer:
         return output_coordinates[0]
 
     def get_board_corners(self, image):
+
         img = cv2.imread(image)
+        gray = get_gray_image(img)
+
+        if np.any(self.pts):
+            cropped_image = self.init_perspective_data(
+                self.detected_board_data[0],
+                self.detected_board_data[1],
+                self.detected_board_data[2],
+                self.detected_board_data[3],
+                self.detected_board_data[4],
+                self.detected_board_data[5],
+                gray,
+            )
+            print("======detected board data")
+            return cropped_image
+
+        print("======detecting board")
+        cropped_image = None
         board_results = self.board_model.predict(
             img, save=False, imgsz=self.CROP_SIZE, conf=0.7
         )
-        img = get_gray_image(img)
-
-        cropped_image = None
         for result in board_results:
             x, y, w, h = result.boxes.xywh[0]
             self.x, self.y, self.xend, self.yend = result.boxes.xyxy[0]
@@ -407,11 +415,18 @@ class Kingslayer:
             #     img, (int(x), int(y)), (int(x + w), int(y + h)), (0, 255, 255), 1
             # )
             if w < 300 and h < 300:
-                continue
+                return None
+            self.detected_board_data = (self.x, self.y, self.xend, self.yend, w, h)
             cropped_image = self.init_perspective_data(
-                self.x, self.y, w, h, self.xend, self.yend, img
+                self.x, self.y, self.xend, self.yend, w, h, gray
             )
             return cropped_image
+
+    def init_camera(self, image, light_contour_number):
+        self.light_contour_number = light_contour_number
+        self.detected_board_data = None
+        self.pts = None
+        return self.get_board_corners(image)
 
     def process_from_image(self, image):
 
@@ -438,7 +453,7 @@ class Kingslayer:
 
         warped_image_path = "warped_image.jpg"
         cv2.imwrite(warped_image_path, cropped_image)
-        self.detect_models(warped_image_path)
+        img = self.detect_models(warped_image_path)
 
         conf = self.generate_chess_board_array()
         conf = list(map(list, zip(*conf[::-1])))
@@ -461,8 +476,16 @@ class Kingslayer:
         best_move = self.get_movement(conf)
 
         # Continue with your existing code...
-
-        # best_move = "a1a4"
+        img = cv2.putText(
+            img,
+            best_move,
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2,
+        )
+        cv2.imwrite("board_result.jpg", img)
         print(best_move)
         self.robot.move(
             self.chess_engine_helper,
@@ -489,7 +512,8 @@ class Kingslayer:
             if empty > 0:
                 fen_row += str(empty)
             fen_rows.append(fen_row)
-        fen = "/".join(fen_rows) + " w KQkq - 0 1"
+        who = "w" if self.is_white else "b"
+        fen = "/".join(fen_rows) + f" {who} KQkq - 0 1"
         self.chess_engine_helper.initialize_board(fen)
         best_move = self.chess_engine_helper.get_best_move()
         return best_move
@@ -599,14 +623,22 @@ while True:
     with open("status.json", "r") as f:
         try:
             status = json.load(f)
-            if status["status"] == "started123456789":
+            if (
+                status["status"] == "started123456789"
+                or status["status"] == "init_camera"
+            ):
                 try:
-                    best_move = chess.process_from_image(image)
+                    if status["status"] == "init_camera":
+                        chess.init_camera(image, status["light_contour_number"])
+                    else:
+                        chess.is_white = status["is_white"]
+                        best_move = chess.process_from_image(image)
                 except Exception as e:
                     print("Error:", e)
                 status["status"] = "stopped"
                 with open("status.json", "w") as f:
                     json.dump(status, f)
+
             elif status["status"] == "calibrate_board":
                 chess.robot.calibrate_board()
                 status["status"] = "stopped"
