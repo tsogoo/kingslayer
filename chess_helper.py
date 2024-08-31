@@ -144,6 +144,15 @@ def chess_test():
     client = mqtt.Client()
     client.connect('localhost')
 
+    def on_custom_event(svg):
+        client.publish(
+            topic='chess', payload=svg
+        )
+
+    from common.event import EventManager
+    event_manager = EventManager()
+    event_manager.register("custom_event", on_custom_event)
+
     with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
         engine.configure({"Skill Level": 9})
         # board = chess.Board("4k3/8/8/8/8/8/8/4K2R w KQkq")
@@ -168,9 +177,7 @@ def chess_test():
             # Generate the SVG
             board_svg = chess.svg.board(board)
 
-            client.publish(
-                topic='chess', payload=board_svg
-            )
+            event_manager.trigger("custom_event", board_svg)
 
 def test_create_video():
     from engine.detect import create_video
