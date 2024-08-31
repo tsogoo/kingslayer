@@ -183,8 +183,20 @@ def test_create_video():
     from engine.detect import create_video
     create_video()
 
+def test_valid_board():
+    from engine.helper import ChessEngineHelper
+    engine = ChessEngineHelper()
+    engine.initialize_board("8/7K/8/8/8/8/8/8")
+
+def test_load_config():
+    from common.config import load_config
+    config = load_config()
+    print(config)
+
 # test_detect_from_video(check_idx=1)
 # test_detect()
-chess_test()
+# chess_test()
 # test_create_video()
 # test_gcode()
+# test_valid_board()
+# test_load_config()

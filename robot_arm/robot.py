@@ -28,8 +28,9 @@ class RobotMove:
 
 class Robot:
 
-    def __init__(self, config):
+    def __init__(self, config, event_manager=None):
         self.config = get_config(config, "robot")
+        self.event_manager = event_manager
         self.robotApiHandler = RobotApiHandler(config=config)
         self.board_square_size = get_config(self.config, "board:square_size")
         self.board_margin_size = get_config(self.config, "board:margin_size")

@@ -10,8 +10,9 @@ import time
 import os
 import yaml
 from robot_arm.robot import Robot
-from common.config import get_config
+from common.config import get_config, load_config
 import logging
+from common.event import EventManager
 
 # Configure logging to use the systemd default (stdout)
 logging.basicConfig(
@@ -100,17 +101,7 @@ class Kingslayer:
         self.detected_board_data = None
         self.light_contour_number = 80
         # conf
-        with open(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.yaml"), "r"
-        ) as file:
-            config = yaml.safe_load(file)
-        self.config = get_config(config, "app")
-
-        # conf
-        with open(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.yaml"), "r"
-        ) as file:
-            config = yaml.safe_load(file)
+        config = load_config()
         self.config = get_config(config, "app")
 
         # initialize models yolo detector
@@ -120,7 +111,10 @@ class Kingslayer:
         # initialize chess engine helper
         self.init_chess_engine()
 
-        self.robot = Robot(config=config)
+        # event manager
+        self.event_manager = EventManager()
+
+        self.robot = Robot(config=config, event_manager=self.event_manager)
         # self.robot.move(self.chess_engine_helper, self, 'e7e5', self.chess_engine_helper.board.turn)
         # self.robot.go_home()
 

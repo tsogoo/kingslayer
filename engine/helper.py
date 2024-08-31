@@ -62,6 +62,9 @@ class ChessEngineHelper:
         else:
             self.board = chess.Board()
         print(self.board)
+        if not self.board.is_valid():
+            print('invalid board detected')
+            print(self.board.status())
 
     # get best possible move: -> e7e5
     def get_best_move(self):
