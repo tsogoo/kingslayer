@@ -24,13 +24,14 @@ robot:
   board:
     x: -164 # 
     y: 250
-    z: -120
+    z: -118
     safe_z: 20
     figure_z: -54
     square_size: 41
     margin_size: 20
   out:
-    x: 400
+    # x: 400
+    x: -115
     y: 180
     z: -60
   in:
@@ -66,4 +67,4 @@ urls:
 
 app:
   chess_engine:
-    level: 9
+    level: 20

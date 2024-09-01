@@ -1,23 +1,13 @@
 import cv2
-from ultralytics import YOLO
-import argparse
-import numpy as np
-import math
-from engine.helper import ChessEngineHelper
-import chess
-import json
-import time
 import os
 import yaml
+import requests
+import numpy as np
+import math
+from ultralytics import YOLO
+from engine.helper import ChessEngineHelper
 from robot_arm.robot import Robot
-from common.config import get_config, load_config
-import logging
-from common.event import EventManager
-
-# Configure logging to use the systemd default (stdout)
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from common.config import get_config
 
 from lib_contour import (
     get_enhanced_image,
@@ -100,8 +90,21 @@ class Kingslayer:
         self.CROP_SIZE = 640
         self.detected_board_data = None
         self.light_contour_number = 80
+        self.image_url = None
+        self.automove = False
+        self.previous_fen = None
         # conf
-        config = load_config()
+        with open(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.yaml"), "r"
+        ) as file:
+            config = yaml.safe_load(file)
+        self.config = get_config(config, "app")
+
+        # conf
+        with open(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.yaml"), "r"
+        ) as file:
+            config = yaml.safe_load(file)
         self.config = get_config(config, "app")
 
         # initialize models yolo detector
@@ -111,10 +114,7 @@ class Kingslayer:
         # initialize chess engine helper
         self.init_chess_engine()
 
-        # event manager
-        self.event_manager = EventManager()
-
-        self.robot = Robot(config=config, event_manager=self.event_manager)
+        self.robot = Robot(config=config)
         # self.robot.move(self.chess_engine_helper, self, 'e7e5', self.chess_engine_helper.board.turn)
         # self.robot.go_home()
 
@@ -315,8 +315,7 @@ class Kingslayer:
         print("=====writing gray image")
 
         cv2.imwrite("gray.jpg", gray)
-        print("======debugggggiin")
-        print(self.pts)
+
         if not np.any(self.pts):
             c = contours[0]
             peri = cv2.arcLength(c, True)
@@ -327,7 +326,7 @@ class Kingslayer:
         min_y = 10000
         max_x = 0
         max_y = 0
-        print("======debugggggiin2")
+
         for p in self.pts:
             if p[0] < min_x:
                 min_x = p[0]
@@ -345,7 +344,7 @@ class Kingslayer:
                 (255, 0, 0),
                 -1,
             )
-        print("======debugggggiin")
+
         yend = int((self.pts[0][1] + self.pts[1][1]) / 2 + yoffset - self.margin)
         xend = int(self.pts[1][0] + xoffset - self.margin)
         ystart = int((self.pts[2][1] + self.pts[3][1]) / 2 + yoffset - self.margin)
@@ -422,6 +421,82 @@ class Kingslayer:
         self.pts = None
         return self.get_board_corners(image)
 
+    def trigger(self, image=None):
+        if self.image_url:
+            img_data = requests.get(self.image_url).content
+            with open("frame.jpg", "wb") as handler:
+                handler.write(img_data)
+                handler.close()
+            return self.auto_process("frame.jpg")
+        else:
+            return self.process_from_image(image)
+
+    def auto_process(self, image):
+        cropped_image = self.get_board_corners(image)
+
+        self.models = []
+        M = cv2.getPerspectiveTransform(
+            self.pts_perspective,
+            np.float32(
+                [
+                    [0, 0],
+                    [0, self.CROP_SIZE],
+                    [self.CROP_SIZE, 0],
+                    [self.CROP_SIZE, self.CROP_SIZE],
+                ]
+            ),
+        )
+
+        # full image warped to square
+        cropped_image = cv2.warpPerspective(
+            cropped_image, M, (self.CROP_SIZE, self.CROP_SIZE)
+        )
+
+        warped_image_path = "warped_image.jpg"
+        cv2.imwrite(warped_image_path, cropped_image)
+        img = self.detect_models(warped_image_path)
+        conf = self.generate_chess_board_array()
+        conf = list(map(list, zip(*conf[::-1])))
+        self.print_chess_board_array(conf)
+        # rotate conf 180 degree
+        if self.is_white:
+            conf = list(map(list, zip(*conf[::-1])))
+            conf = list(map(list, zip(*conf[::-1])))
+        self.print_chess_board_array(conf)
+        # conf = [
+        #     ["r", "n", "b", "q", "k", "b", "n", "r"],
+        #     ["p", "p", "p", "p", " ", "p", "p", "p"],
+        #     [" ", " ", " ", " ", " ", " ", " ", " "],
+        #     [" ", " ", " ", " ", "p", " ", " ", " "],
+        #     [" ", " ", " ", " ", "P", " ", " ", " "],
+        #     [" ", " ", " ", " ", " ", " ", " ", " "],
+        #     ["P", "P", "P", "P", " ", "P", "P", "P"],
+        #     ["R", "N", "B", "Q", "K", "B", "N", "R"],
+        # ]
+        best_move = None
+        best_move = self.get_movement(conf)
+        if best_move:
+            # Continue with your existing code...
+            img = cv2.putText(
+                img,
+                best_move,
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2,
+            )
+            cv2.imwrite("board_result.jpg", img)
+            self.robot.move(
+                self.chess_engine_helper,
+                self,
+                best_move,
+                self.chess_engine_helper.board.turn,
+            )
+            print(self.robot.commands)
+            return best_move
+        cv2.imwrite("board_result.jpg", img)
+
     def process_from_image(self, image):
 
         # Load the image using OpenCV
@@ -491,6 +566,7 @@ class Kingslayer:
         return best_move
 
     def get_movement(self, conf):
+        print("Get Movement starting ...")
         fen_rows = []
         for row in conf:
             empty = 0
@@ -506,20 +582,45 @@ class Kingslayer:
             if empty > 0:
                 fen_row += str(empty)
             fen_rows.append(fen_row)
-        if self.is_white:
-            who = "w"  # White to move
-            fen = "/".join(fen_rows) + f" {who} KQkq - 0 1"
-        else:
+        if not self.is_white:
             # If black is playing, rotate the board 180 degrees
             fen_rows.reverse()
             fen_rows = [row[::-1].swapcase() for row in fen_rows]
-            who = "w"  # Black to move
-            fen = "/".join(fen_rows) + f" {who} KQkq - 0 1"
-
+        who = "w"  # Black to move
+        fen = "/".join(fen_rows)
+        if not self.chess_engine_helper.is_valid_fen(f"{fen} {who} KQkq - 0"):
+            return None
         print(fen)
-        self.chess_engine_helper.initialize_board(fen)
-        best_move = self.chess_engine_helper.get_best_move()
-        return best_move
+        last_move = None
+        if fen == "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR" and not self.is_white:
+            print("I'm Black and waiting White move...")
+            self.previous_fen = fen
+            return None
+        elif fen == "RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr" and self.is_white:
+            print("I'm White and I'm Moving...")
+            last_move = True
+        if self.previous_fen:
+            oppose = "w" if who == "b" else "b"
+            last_move = self.chess_engine_helper.get_last_move(
+                self.previous_fen + f" {who} KQkq - 0", fen + f" {oppose} KQkq - 0"
+            )
+            if not last_move:
+                print("last move not detected")
+        if last_move or not self.previous_fen:
+            print("last move", last_move)
+            print("previous fen", self.previous_fen)
+            self.chess_engine_helper.initialize_board(fen + f" {who} KQkq - 0 1")
+            try:
+                best_move = self.chess_engine_helper.get_best_move()
+            except Exception:
+                self.init_chess_engine()
+                return None
+            self.previous_fen = self.chess_engine_helper.apply_uci_move_to_fen(
+                fen, best_move
+            ).split(" ")[0]
+            print("Previous fen saved", self.previous_fen)
+            return best_move
+        return None
 
     def generate_chess_board_array(self):
         chess_board_array = []
@@ -593,76 +694,3 @@ class Kingslayer:
             x * self.robot.board_square_size + self.robot.board_square_size / 2,
             y * self.robot.board_square_size + self.robot.board_square_size / 2,
         )
-
-
-parser = argparse.ArgumentParser(
-    description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
-)
-parser.add_argument(
-    "--image",
-    required=False,
-    default="frame.jpg",
-    help="Image file or directory to predict",
-)
-parser.add_argument(
-    "--board_weight",
-    required=False,
-    default="best_board.pt",
-    help="Weight of the training model",
-)
-parser.add_argument(
-    "--chess_model_weight",
-    required=False,
-    default="best_cm.pt",
-    help="Weight of the training model",
-)
-args = parser.parse_args()
-image = args.image
-board_weight = args.board_weight
-chess_model_weight = args.chess_model_weight
-
-
-chess = Kingslayer(board_weight, chess_model_weight)
-# best_move = chess.process_from_image(image)
-
-while True:
-    with open("status.json", "r") as f:
-        try:
-            status = json.load(f)
-            if (
-                status["status"] == "started123456789"
-                or status["status"] == "init_camera"
-            ):
-                try:
-                    if status["status"] == "init_camera":
-                        chess.init_camera(image, status["light_contour_number"])
-                    else:
-                        chess.is_white = status["is_white"]
-                        best_move = chess.process_from_image(image)
-                except Exception as e:
-                    print("Error:", e)
-                status["status"] = "stopped"
-                with open("status.json", "w") as f:
-                    json.dump(status, f)
-
-            elif status["status"] == "calibrate_board":
-                chess.robot.calibrate_board()
-                status["status"] = "stopped"
-                with open("status.json", "w") as f:
-                    json.dump(status, f)
-            else:
-                time.sleep(0.1)
-            f.close()
-        except Exception as e:
-            chess.init_chess_engine()
-    # check if the 'q' key is pressed
-    if cv2.waitKey(1) == ord("q"):
-        break
-    if cv2.waitKey(1) == ord("."):
-        # run 'python change_to_started.py' shell command
-        os.system("python change_to_started.py")
-    if cv2.waitKey(1) == ord("n"):
-        best_move = chess.process_from_image(image)
-
-
-# Save the image with the line
