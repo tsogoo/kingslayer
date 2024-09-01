@@ -154,7 +154,8 @@ def chess_test():
     event_manager.register("custom_event", on_custom_event)
 
     with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
-        engine.configure({"Skill Level": 9})
+        engine.configure({"Skill Level": 20})
+        
         # board = chess.Board("4k3/8/8/8/8/8/8/4K2R w KQkq")
         board = chess.Board()
 
@@ -193,6 +194,22 @@ def test_load_config():
     config = load_config()
     print(config)
 
+def test_last_move(is_valid:bool=True):
+    with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
+        engine.configure({"Skill Level": 1})
+        board = chess.Board("4k3/8/8/8/8/8/8/4K2R w KQkq")
+        board_new = chess.Board("4k3/8/8/8/8/8/8/5RK1 b KQkq" if is_valid else "4k3/8/8/8/8/8/8/6KR b KQkq")
+
+        for move in board.legal_moves:
+            board.push(move)
+            # if (move.uci() == 'e1g1'):
+            #     print(board.fen().split()[0], board_new.fen().split()[0])
+            if board.fen().split()[0] == board_new.fen().split()[0]:
+                return move
+            board.pop()
+        
+        return None
+
 # test_detect_from_video(check_idx=1)
 # test_detect()
 # chess_test()
@@ -200,3 +217,4 @@ def test_load_config():
 # test_gcode()
 # test_valid_board()
 # test_load_config()
+print(test_last_move(True))
