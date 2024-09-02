@@ -3,10 +3,18 @@
 import React, { useEffect, useState } from 'react';
 import mqtt, { MqttClient } from 'mqtt';
 
+interface BoardData {
+  svg: string;
+  move: string;
+  history: string[];
+}
+
 const BoardComponent: React.FC = () => {
   const [client, setClient] = useState<MqttClient | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [message, setMessage] = useState('');
+  const [svg, setSvg] = useState('');
+  const [move, setMove] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
 
   useEffect(() => {
     // Connect to the MQTT broker
@@ -21,8 +29,11 @@ const BoardComponent: React.FC = () => {
 
     mqttClient.on('message', (topic: string, payload: Buffer) => {
       // Handle the received message
-      console.log('Received Message:', topic, payload.toString());
-      setMessage(payload.toString());
+      const data: BoardData = JSON.parse(payload.toString());
+      console.log('Received Message:', topic, data);
+      setSvg(data.svg);
+      setMove(data.move);
+      setHistory(data.history.reverse());
     });
 
     mqttClient.on('error', (err) => {
@@ -47,9 +58,15 @@ const BoardComponent: React.FC = () => {
   }, []);
 
   return (
-    <div style={{width:'600px'}}>
+    <div>
       <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
-      <div dangerouslySetInnerHTML={{ __html: message }} />
+      <div style={{float:'left', width:'600px'}} dangerouslySetInnerHTML={{ __html: svg }} />
+      <div style={{float:'left', padding:'0 0 0 1em'}}>
+        <div>last move: { move }</div>
+        <div>{history.map((h, i) => (
+          <div key={i}>{i+1}. {move == h ? <span style={{color:'white',background:'black'}}>{h}</span> : h}</div>
+        ))}</div>
+      </div>
     </div>
   );
 };
