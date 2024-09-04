@@ -81,6 +81,7 @@ def find_max_contour_area(contours):
 class Kingslayer:
     def __init__(self, board_weight, chess_model_weight):
         self.is_white = True
+        self.fen_kq = "KQkq"
         self.models = []
         self.pts_square = None
         self.pts_perspective = None
@@ -565,6 +566,28 @@ class Kingslayer:
         print(self.robot.commands)
         return best_move
 
+    def produce_kq(self, fen, side, fen_kq):        
+        print("Producing Fen:")
+        print(fen)
+        # check if 'K' in string self.fen_kq
+        if not self.is_white:
+            fen_arr = fen.split("/")
+            fen_arr[0] = fen_arr[0][::-1]
+            fen_arr[-1] = fen_arr[-1][::-1]
+            fen = "/".join(fen_arr)
+
+        if not self.chess_engine_helper.is_white_king_side_castling_possible(f"{fen} {side} {fen_kq}"):
+            fen_kq = fen_kq.replace("K", "")
+        if not self.chess_engine_helper.is_white_queen_side_castling_possible(f"{fen} {side} {fen_kq}"):
+            fen_kq = fen_kq.replace("Q", "")
+        if not self.chess_engine_helper.is_black_king_side_castling_possible(f"{fen} {side} {fen_kq}"):
+            fen_kq = fen_kq.replace("k", "")
+        if not self.chess_engine_helper.is_black_queen_side_castling_possible(f"{fen} {side} {fen_kq}"):
+            fen_kq = fen_kq.replace("q", "")
+        if fen_kq == "":
+            return "-"
+        return fen_kq
+    
     def get_movement(self, conf):
         print("Get Movement starting ...")
         fen_rows = []
@@ -588,9 +611,8 @@ class Kingslayer:
             fen_rows = [row[::-1].swapcase() for row in fen_rows]
         who = "w"  # Black to move
         fen = "/".join(fen_rows)
-        if not self.chess_engine_helper.is_valid_fen(f"{fen} {who} KQkq - 0"):
+        if not self.chess_engine_helper.is_valid_fen(f"{fen} {who} {self.fen_kq} - 0"):
             return None
-        print(fen)
         last_move = None
         if fen == "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR" and not self.is_white:
             print("I'm Black and waiting White move...")
@@ -601,15 +623,24 @@ class Kingslayer:
             last_move = True
         if self.previous_fen:
             oppose = "w" if who == "b" else "b"
+            camera_fen_kq = self.produce_kq(fen, who, self.fen_kq)
             last_move = self.chess_engine_helper.get_last_move(
-                self.previous_fen + f" {who} KQkq - 0", fen + f" {oppose} KQkq - 0"
+                f"{self.previous_fen} {oppose} {self.fen_kq} - 0", f"{fen} {who} {camera_fen_kq} - 0"
             )
             if not last_move:
+                if fen == "RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr":
+                    self.previous_fen = None
+                    self.fen_kq = "KQkq"
+                elif fen == "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR":
+                    self.previous_fen = None
+                    self.fen_kq = "KQkq"
                 print("last move not detected")
+
         if last_move or not self.previous_fen:
             print("last move", last_move)
             print("previous fen", self.previous_fen)
-            self.chess_engine_helper.initialize_board(fen + f" {who} KQkq - 0 1")
+            self.fen_kq = self.produce_kq(fen, who, self.fen_kq)
+            self.chess_engine_helper.initialize_board(fen + f" {who} {self.fen_kq} - 0")
             try:
                 best_move = self.chess_engine_helper.get_best_move()
             except Exception:
@@ -618,6 +649,7 @@ class Kingslayer:
             self.previous_fen = self.chess_engine_helper.apply_uci_move_to_fen(
                 fen, best_move
             ).split(" ")[0]
+            self.fen_kq = self.produce_kq(self.previous_fen, who, self.fen_kq)
             print("Previous fen saved", self.previous_fen)
             return best_move
         return None

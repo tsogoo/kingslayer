@@ -63,7 +63,7 @@ while True:
                         chess.is_white = status["is_white"]
                         chess.image_url = status["image_url"]
                         best_move = chess.trigger(image)
-                        time.sleep(1)  # delay 1 second
+                        time.sleep(.3)  # delay 1 second
                 except Exception as e:
                     print("Error:", e)
 
