@@ -144,14 +144,28 @@ def chess_test():
     client = mqtt.Client()
     client.connect('localhost')
 
-    def on_custom_event(svg):
+    def on_custom_event(data):
         client.publish(
-            topic='chess', payload=svg
+            topic='chess', payload=data
         )
 
     from common.event import EventManager
     event_manager = EventManager()
     event_manager.register("custom_event", on_custom_event)
+
+    import json
+    def notify(board, move):
+        # Generate the SVG
+        svg = chess.svg.board(board)
+        history = [move.uci() for move in board.move_stack]
+        print(history)
+        data = {
+            "svg": svg,
+            "move": move,
+            "history": history
+        }
+        json_data = json.dumps(data)
+        event_manager.trigger("custom_event", json_data)
 
     with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
         engine.configure({"Skill Level": 20})
@@ -168,17 +182,14 @@ def chess_test():
                 except ValueError:
                     print("Invalid move. Try again.")
                     continue
+                notify(board, human_move)
             else:
                 print("Stockfish is thinking...")
                 if board.is_check():
                     print('checked')
                 result = engine.play(board, chess.engine.Limit(time=0.1))
                 board.push(result.move)
-            
-            # Generate the SVG
-            board_svg = chess.svg.board(board)
-
-            event_manager.trigger("custom_event", board_svg)
+                notify(board, result.move.uci())
 
 def test_create_video():
     from engine.detect import create_video
@@ -198,7 +209,7 @@ def test_last_move(is_valid:bool=True):
     with chess.engine.SimpleEngine.popen_uci("engine/stockfish/stockfish-ubuntu-x86-64") as engine:  # Replace "stockfish_path" with the actual path to Stockfish executable
         engine.configure({"Skill Level": 1})
         board = chess.Board("4k3/8/8/8/8/8/8/4K2R w KQkq")
-        board_new = chess.Board("4k3/8/8/8/8/8/8/5RK1 b KQkq" if is_valid else "4k3/8/8/8/8/8/8/6KR b KQkq")
+        board_new = chess.Board("4k3/8/8/8/8/8/8/5RK1 b" if is_valid else "4k3/8/8/8/8/8/8/6KR b")
 
         for move in board.legal_moves:
             board.push(move)
@@ -207,14 +218,14 @@ def test_last_move(is_valid:bool=True):
             if board.fen().split()[0] == board_new.fen().split()[0]:
                 return move
             board.pop()
-        
+
         return None
 
 # test_detect_from_video(check_idx=1)
 # test_detect()
-# chess_test()
+chess_test()
 # test_create_video()
 # test_gcode()
 # test_valid_board()
 # test_load_config()
-print(test_last_move(True))
+# print(test_last_move(is_valid=False))
