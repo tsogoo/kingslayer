@@ -47,7 +47,8 @@ while True:
         try:
             status = json.load(f)
             if (
-                status["status"] == "started123456789"
+                status["status"] == "starting"
+                or status["status"] == "started"
                 or status["status"] == "init_camera"
             ):
                 try:
@@ -56,12 +57,18 @@ while True:
                         status["status"] = "stopped"
                         print("Stoppedddddddddddddddddddd")
                         with open("status.json", "w") as f:
-                            print("dumping status1")
                             json.dump(status, f)
                     else:
-                        chess.automove = True
-                        chess.is_white = status["is_white"]
                         chess.image_url = status["image_url"]
+                        chess.init_chess_engine()
+                        chess.is_white = status["is_white"]
+                        chess.automove = True
+                        if status["status"] == "starting":
+                            chess.previous_fen = None
+                            status["status"] = "started"
+                            print("Started")
+                            with open("status.json", "w") as f:
+                                json.dump(status, f)
                         best_move = chess.trigger(image)
                         time.sleep(.3)  # delay 1 second
                 except Exception as e:
