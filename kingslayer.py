@@ -90,7 +90,7 @@ class Kingslayer:
         self.CONFIDENCE_THRESHOLD = 0.7
         self.CROP_SIZE = 640
         self.detected_board_data = None
-        self.light_contour_number = 80
+        self.light_contour_number = 86
         self.image_url = None
         self.automove = False
         self.previous_fen = None
@@ -429,8 +429,8 @@ class Kingslayer:
                 handler.write(img_data)
                 handler.close()
             return self.auto_process("frame.jpg")
-        else:
-            return self.process_from_image(image)
+        # else:
+        #     return self.process_from_image(image)
 
     def auto_process(self, image):
         cropped_image = self.get_board_corners(image)
@@ -459,21 +459,6 @@ class Kingslayer:
         conf = self.generate_chess_board_array()
         conf = list(map(list, zip(*conf[::-1])))
         self.print_chess_board_array(conf)
-        # rotate conf 180 degree
-        if self.is_white:
-            conf = list(map(list, zip(*conf[::-1])))
-            conf = list(map(list, zip(*conf[::-1])))
-        self.print_chess_board_array(conf)
-        # conf = [
-        #     ["r", "n", "b", "q", "k", "b", "n", "r"],
-        #     ["p", "p", "p", "p", " ", "p", "p", "p"],
-        #     [" ", " ", " ", " ", " ", " ", " ", " "],
-        #     [" ", " ", " ", " ", "p", " ", " ", " "],
-        #     [" ", " ", " ", " ", "P", " ", " ", " "],
-        #     [" ", " ", " ", " ", " ", " ", " ", " "],
-        #     ["P", "P", "P", "P", " ", "P", "P", "P"],
-        #     ["R", "N", "B", "Q", "K", "B", "N", "R"],
-        # ]
         best_move = None
         best_move = self.get_movement(conf)
         if best_move:
@@ -492,7 +477,7 @@ class Kingslayer:
                 self.chess_engine_helper,
                 self,
                 best_move,
-                self.chess_engine_helper.board.turn,
+                self.chess_engine_helper.board.turn if self.is_white else not self.chess_engine_helper.board.turn,
             )
             print(self.robot.commands)
             return best_move
@@ -528,9 +513,9 @@ class Kingslayer:
         conf = list(map(list, zip(*conf[::-1])))
         self.print_chess_board_array(conf)
         # rotate conf 180 degree
-        if self.is_white:
-            conf = list(map(list, zip(*conf[::-1])))
-            conf = list(map(list, zip(*conf[::-1])))
+        # if self.is_white:
+        #     conf = list(map(list, zip(*conf[::-1])))
+        #     conf = list(map(list, zip(*conf[::-1])))
         self.print_chess_board_array(conf)
         # conf = [
         #     ["r", "n", "b", "q", "k", "b", "n", "r"],
@@ -569,13 +554,6 @@ class Kingslayer:
     def produce_kq(self, fen, side, fen_kq):        
         print("Producing Fen:")
         print(fen)
-        # check if 'K' in string self.fen_kq
-        if not self.is_white:
-            fen_arr = fen.split("/")
-            fen_arr[0] = fen_arr[0][::-1]
-            fen_arr[-1] = fen_arr[-1][::-1]
-            fen = "/".join(fen_arr)
-
         if not self.chess_engine_helper.is_white_king_side_castling_possible(f"{fen} {side} {fen_kq}"):
             fen_kq = fen_kq.replace("K", "")
         if not self.chess_engine_helper.is_white_queen_side_castling_possible(f"{fen} {side} {fen_kq}"):
@@ -605,50 +583,65 @@ class Kingslayer:
             if empty > 0:
                 fen_row += str(empty)
             fen_rows.append(fen_row)
-        if not self.is_white:
-            # If black is playing, rotate the board 180 degrees
-            fen_rows.reverse()
-            fen_rows = [row[::-1].swapcase() for row in fen_rows]
-        who = "w"  # Black to move
-        fen = "/".join(fen_rows)
-        if not self.chess_engine_helper.is_valid_fen(f"{fen} {who} {self.fen_kq} - 0"):
-            return None
-        last_move = None
-        if fen == "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR" and not self.is_white:
-            print("I'm Black and waiting White move...")
-            self.previous_fen = fen
-            return None
-        elif fen == "RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr" and self.is_white:
-            print("I'm White and I'm Moving...")
-            last_move = True
-        if self.previous_fen:
-            oppose = "w" if who == "b" else "b"
-            camera_fen_kq = self.produce_kq(fen, who, self.fen_kq)
-            last_move = self.chess_engine_helper.get_last_move(
-                f"{self.previous_fen} {oppose} {self.fen_kq} - 0", f"{fen} {who} {camera_fen_kq} - 0"
-            )
-            if not last_move:
-                if fen == "RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr":
-                    self.previous_fen = None
-                    self.fen_kq = "KQkq"
-                elif fen == "rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR":
-                    self.previous_fen = None
-                    self.fen_kq = "KQkq"
-                print("last move not detected")
+        if self.is_white:
+            # reverse array and string
+            fen_rows = fen_rows[::-1]
+            for i in range(len(fen_rows)):
+                fen_rows[i] = fen_rows[i][::-1]
 
+        if self.is_white:
+            who = "w"
+            oppose = "b"
+        else:
+            who = "b"
+            oppose = "w"
+
+        fen = "/".join(fen_rows)
+        if not self.chess_engine_helper.is_valid_fen(f"{fen} {who} {self.fen_kq}"):
+            return None
+        print("==========================Fen")
+        print(fen)
+        last_move = None
+        if fen == "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR":
+            self.fen_kq = "KQkq"
+            if not self.is_white:
+                print("I'm Black and waiting White move...")
+                self.previous_fen = fen
+                return None
+            else:
+                print("I'm White and I'm Moving...")
+                self.previous_fen = None
+                last_move = True
+        
+        if self.previous_fen:
+            print("Previous fen", self.previous_fen)
+            print("Current fen", fen)
+            if self.previous_fen != fen:
+                camera_fen_kq = self.produce_kq(fen, who, self.fen_kq)
+                last_move = self.chess_engine_helper.get_last_move(
+                    f"{self.previous_fen} {oppose} {self.fen_kq}", f"{fen} {who} {camera_fen_kq}"
+                )
+                if not last_move:
+                    print("last move not detected")
+                    print(self.previous_fen)
+        
         if last_move or not self.previous_fen:
             print("last move", last_move)
             print("previous fen", self.previous_fen)
             self.fen_kq = self.produce_kq(fen, who, self.fen_kq)
-            self.chess_engine_helper.initialize_board(fen + f" {who} {self.fen_kq} - 0")
+            self.chess_engine_helper.initialize_board(fen + f" {who} {self.fen_kq}")
             try:
                 best_move = self.chess_engine_helper.get_best_move()
             except Exception:
                 self.init_chess_engine()
                 return None
-            self.previous_fen = self.chess_engine_helper.apply_uci_move_to_fen(
-                fen, best_move
-            ).split(" ")[0]
+            print("===========Fen before Best Move", f"{fen} {who} {self.fen_kq} - 0 1")
+            best_fen = self.chess_engine_helper.apply_uci_move_to_fen(
+                f"{fen} {who} {self.fen_kq} - 0 1", best_move
+            )
+            print("===========Best Fen", best_fen)
+            print(best_move)
+            self.previous_fen = best_fen.split(" ")[0]
             self.fen_kq = self.produce_kq(self.previous_fen, who, self.fen_kq)
             print("Previous fen saved", self.previous_fen)
             return best_move
@@ -693,6 +686,9 @@ class Kingslayer:
 
         # new board square height, width = 370/8 = 46.25
         # x, y => figure's square coordinate on board, is_occupied => whether square is occupied
+        if not self.is_white:
+            x = 7 - x
+            y = 7 - y
         if is_occupied:
             for model in self.models:
                 if (

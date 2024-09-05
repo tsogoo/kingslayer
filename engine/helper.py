@@ -114,6 +114,7 @@ class ChessEngineHelper:
             if board1.fen().split()[0] == board2.fen().split()[0]:
                 return move
             board1.pop()
+        print("Movement is not valid-----------------------")
         return None
 
     def apply_uci_move_to_fen(self, previous_fen, uci_move):
