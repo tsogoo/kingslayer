@@ -60,10 +60,10 @@ while True:
                             json.dump(status, f)
                     else:
                         chess.image_url = status["image_url"]
-                        chess.init_chess_engine()
                         chess.is_white = status["is_white"]
                         chess.automove = True
                         if status["status"] == "starting":
+                            chess.init_chess_engine()
                             chess.previous_fen = None
                             status["status"] = "started"
                             print("Started")

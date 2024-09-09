@@ -612,7 +612,11 @@ class Kingslayer:
                 print("I'm White and I'm Moving...")
                 self.previous_fen = None
                 last_move = True
-        
+        elif fen == "RNBKQBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbkqbnr":
+            self.is_white = True
+            self.previous_fen = None
+            self.fen_kq = "KQkq"
+            return
         if self.previous_fen:
             print("Previous fen", self.previous_fen)
             print("Current fen", fen)

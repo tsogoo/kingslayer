@@ -5,7 +5,7 @@ robot:
     short_distance: 40
     short_distance_ratio: '30:40:30' #[100]
   gripper:
-    take_angle: 115
+    take_angle: 110
     release_angle: 75
     step: 5
     delay: 200 #ms
