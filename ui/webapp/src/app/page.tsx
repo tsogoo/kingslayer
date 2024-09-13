@@ -9,19 +9,22 @@ export default function Home() {
     },
     arms: [
       {
-        L1:200,
-        L2:200,
+        L1:100,
+        L2:100,
         position: {x:0, y:0},
         color: 'green',
       },
       {
-        L1:200,
-        L2:200,
+        L1:100,
+        L2:100,
         position: {x:100,y:0},
         color: 'red',
         opposite: true
       }
-    ]
+    ],
+    init: {
+        x:50, y:50
+    }
   }
 
   return (
