@@ -13,14 +13,40 @@ export interface Point {
   y: number;
 };
 
-export interface KinematicsContextState {
+export interface Animation {
+  start: Point;
+  end: Point;
+  duration: number;
+}
+
+export interface Animate {
+  point: Point;
+  delay: number;
+}
+
+export interface Config {
+  type: string;
+  val: number|string;
+}
+
+interface KinematicsContextState {
   position: Point;
   offset: Point;
+  setPosition: (point: Point) => void;
 };
 
 export const x0y0:Point = {x:0,y:0};
 
 export const KinematicsContext = createContext<KinematicsContextState>({
-  position:x0y0,
-  offset:x0y0
+  position: x0y0,
+  offset: x0y0,
+  setPosition: (point: Point) => {},
 });
+
+interface AnimationContextState {
+  setConfig: (type: string, val: string|number) => void;
+};
+
+export const AnimationContext = createContext<AnimationContextState>({
+  setConfig: (type: string, val: string|number) => {}
+})

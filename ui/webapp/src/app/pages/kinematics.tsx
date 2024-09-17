@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useContext } from 'react';
-import { Arm, Point, KinematicsContext, x0y0 } from '../context/kinematics';
+import { Arm, Point, KinematicsContext, x0y0, Animation, Animate, Config, AnimationContext } from '../context/kinematics';
 
 interface ArmComponentConf {
     conf: ArmConf
@@ -60,6 +60,121 @@ const ArmComponent: React.FC<ArmComponentConf> = ({conf}) => {
     );
 };
 
+interface AnimationConf {
+    conf: Animation
+}
+
+const AnimationComponent: React.FC<AnimationConf> = ({conf}) => {
+    
+    const { setPosition } = useContext(KinematicsContext);
+
+    const getAmination = (): Animation => {
+        return {
+            start: {
+                x: conf.start.x,
+                y: conf.start.y
+            },
+            end: {
+                x: conf.end.x,
+                y: conf.end.y
+            },
+            duration: conf.duration
+        }
+    };
+    
+    const setConfig = (type: string, val: any) => {
+        let animation = getAmination();
+        switch (type) {
+            case 'x':
+                animation.start.x = val;
+                break;
+            case 'y':
+                animation.start.y = val;
+                break;
+            case 'x1':
+                animation.end.x = val;
+                break;
+            case 'y1':
+                animation.end.y = val;
+                break;
+        }
+        initAnimation(animation);
+    };
+    const initAnimation = (animation: Animation) => {
+        const vx = (animation.end.x - animation.start.x)/animation.duration;
+        const vy = (animation.end.y - animation.start.y)/animation.duration;
+        let x, y = 0;
+        let animations: Animate[] = []
+        let delay: number = animation.duration/50;
+        for (let time = 0; time <= animation.duration; time+=delay) {
+            x = animation.end.x-vx*time;
+            y = animation.end.y-vy*time;
+            animations.push({point:{x:x, y:y},delay:delay});
+        }
+        animate(animations);
+    }
+    const animate = (animations: Animate[]) => {
+        const conf = animations.pop();
+        if (conf) {
+            setTimeout(function() {
+                setPosition(conf.point);
+                animate(animations);
+            }, conf.delay);
+        }
+    }
+    useEffect(() => {
+        initAnimation(conf);
+    }, []);
+    return (
+        <AnimationContext.Provider value={{setConfig}}>
+            <div>Animation</div>
+            <div>
+                <ConfigComponent conf={{type:'x',val:conf.start.x}} />
+                <ConfigComponent conf={{type:'y',val:conf.start.y}} />
+                <ConfigComponent conf={{type:'x1',val:conf.end.x}} />
+                <ConfigComponent conf={{type:'y1',val:conf.end.y}} />
+            </div>
+        </AnimationContext.Provider>
+    );
+}
+
+interface ConfigComponentConf {
+    conf: Config;
+}
+
+const ConfigComponent: React.FC<ConfigComponentConf> = ({conf}) => {
+    const [v, setV] = useState<string|number>(conf.val);
+    const [v2, setV2] = useState(v);
+    const { setConfig } = useContext(AnimationContext);
+    
+    const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const val = Number(event.target.value);
+        setV(val);
+    };
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+        setV2(v);
+        }, 500);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [v]);
+    useEffect(() => {
+        setConfig(conf.type, v2);
+    }, [v2]);
+    return (
+        <div>
+            <span>{conf.type}</span>
+            <input
+                type="text"
+                value={v}
+                onChange={onChange}
+            />
+        </div>
+    );
+}
+
 interface KinematicsComponentConf {
     conf: KinematicsConf;
 }
@@ -67,14 +182,15 @@ interface KinematicsComponentConf {
 interface KinematicsConf {
     offset: Point;
     arms: Arm[];
-    init: Point;
+    init?: Point;
+    animation?: Animation;
 }
 
 const KinematicsComponent: React.FC<KinematicsComponentConf> = ({conf}) => {
     
     const [position, setPosition] = useState<Point>(x0y0);
-    const [offset, setOffset] = useState<Point>(conf.offset)
-
+    const [offset, setOffset] = useState<Point>(conf.offset);
+    
     const onSvgClick = (event: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
         const svgElement = event.currentTarget;
         const rect = svgElement.getBoundingClientRect();
@@ -82,20 +198,31 @@ const KinematicsComponent: React.FC<KinematicsComponentConf> = ({conf}) => {
         const y = event.clientY - rect.top;
         setPosition({x:x-conf.offset.x,y:y-conf.offset.y});
     };
+    
     useEffect(() => {
-        setPosition(conf.init)
-    }, [])
+        if (conf.init) {
+            setPosition(conf.init);
+        }
+    }, []);
     return (
-        <KinematicsContext.Provider value={{position, offset}}>
-            <div style={{border:'1px solid'}}>
-                <svg onClick={onSvgClick} height="1200" width="1200" xmlns="http://www.w3.org/2000/svg">
+        <KinematicsContext.Provider value={{position, offset, setPosition}}>
+            <>
+                <div style={{float:'left',border:'1px solid'}}>
+                    <svg onClick={onSvgClick} height="600" width="1000" xmlns="http://www.w3.org/2000/svg">
+                    {
+                        conf.arms.map((arm, i) => (
+                            <ArmComponent key={i} conf={{arm:arm}}/>
+                        ))
+                    }
+                    </svg>
+                </div>
                 {
-                    conf.arms.map((arm, i) => (
-                        <ArmComponent key={i} conf={{arm:arm}}/>
-                    ))
+                    conf.animation &&
+                    <div style={{float:'right'}}>
+                        <AnimationComponent conf={conf.animation}/>
+                    </div>
                 }
-                </svg>
-            </div>
+            </>
         </KinematicsContext.Provider>
     );
 };

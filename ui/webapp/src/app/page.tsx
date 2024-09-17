@@ -1,4 +1,5 @@
 // import Board from './board'
+import { start } from 'repl';
 import Kinematics from './pages/kinematics';
 
 export default function Home() {
@@ -22,8 +23,14 @@ export default function Home() {
         opposite: true
       }
     ],
-    init: {
+    animation: {
+      start: {
         x:50, y:50
+      },
+      end: {
+        x:50, y:20
+      },
+      duration: 3000
     }
   }
 
