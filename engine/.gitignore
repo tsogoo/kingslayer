@@ -1,2 +1,4 @@
 stockfish
 stockfish/*
+pgn/*
+chess_engine.db
