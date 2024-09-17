@@ -15,11 +15,11 @@ const ArmComponent: React.FC<ArmComponentConf> = ({conf}) => {
     const [pathStr, setPathStr] = useState<string>('');
     const [points, setPoints] = useState<Point[]>([])
     const [angle, setAngle] = useState(0)
+    const [arm, setArm] = useState<Arm>(conf.arm);
 
     const { position, offset } = useContext(KinematicsContext);
 
     const calculatePoints = () => {
-        const arm = conf.arm
         //  relative to arm starting point
         const to: Point = {
             x:position.x-arm.position.x,
@@ -46,16 +46,16 @@ const ArmComponent: React.FC<ArmComponentConf> = ({conf}) => {
     }
     useEffect(() => {
         calculatePoints();
-    }, [position, offset]);
+    }, [position, offset, arm]);
     useEffect(() => {
         setPathStr(points.map((point,i)=>`${i==0?'M':'L'}${point.x+offset.x} ${point.y+offset.y}`).join(' '));
     }, [points]);
     return (
         <>
-        <path d={pathStr} fill="none" stroke={conf.arm.color} strokeWidth="2" />
+        <path d={pathStr} fill="none" stroke={arm.color} strokeWidth="2" />
         <text
-            x={conf.arm.position.x+offset.x-20}
-            y={conf.arm.position.y+offset.y-20} fontSize="20">{angle}°</text>
+            x={arm.position.x+offset.x-20}
+            y={arm.position.y+offset.y-20} fontSize="20">{angle}°</text>
         </>
     );
 };
@@ -82,7 +82,7 @@ const AnimationComponent: React.FC<AnimationConf> = ({conf}) => {
         }
     };
     
-    const setConfig = (type: string, val: any) => {
+    const setValue = (type: string, val: any) => {
         let animation = getAmination();
         switch (type) {
             case 'x':
@@ -129,26 +129,28 @@ const AnimationComponent: React.FC<AnimationConf> = ({conf}) => {
         initAnimation();
     }, [animation]);
     return (
-        <AnimationContext.Provider value={{setConfig}}>
+        <AnimationContext.Provider value={{setValue}}>
             <div>Animation</div>
             <div>
-                <ConfigComponent conf={{type:'x',val:conf.start.x}} />
-                <ConfigComponent conf={{type:'y',val:conf.start.y}} />
-                <ConfigComponent conf={{type:'x1',val:conf.end.x}} />
-                <ConfigComponent conf={{type:'y1',val:conf.end.y}} />
+                <div>from:</div>
+                <ValueComponent conf={{type:'x',val:conf.start.x}} />
+                <ValueComponent conf={{type:'y',val:conf.start.y}} />
+                <div>to:</div>
+                <ValueComponent conf={{type:'x1',val:conf.end.x}} />
+                <ValueComponent conf={{type:'y1',val:conf.end.y}} />
             </div>
         </AnimationContext.Provider>
     );
 }
 
-interface ConfigComponentConf {
+interface ValueComponentConf {
     conf: Config;
 }
 
-const ConfigComponent: React.FC<ConfigComponentConf> = ({conf}) => {
+const ValueComponent: React.FC<ValueComponentConf> = ({conf}) => {
     const [v, setV] = useState<string|number>(conf.val);
     const [v2, setV2] = useState(v);
-    const { setConfig } = useContext(AnimationContext);
+    const { setValue } = useContext(AnimationContext);
     
     const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const val = Number(event.target.value);
@@ -164,7 +166,7 @@ const ConfigComponent: React.FC<ConfigComponentConf> = ({conf}) => {
         };
     }, [v]);
     useEffect(() => {
-        setConfig(conf.type, v2);
+        setValue(conf.type, v2);
     }, [v2]);
     return (
         <div>
@@ -219,12 +221,14 @@ const KinematicsComponent: React.FC<KinematicsComponentConf> = ({conf}) => {
                     }
                     </svg>
                 </div>
+                <div style={{float:'right'}}>
                 {
                     conf.animation &&
                     <div style={{float:'right'}}>
                         <AnimationComponent conf={conf.animation}/>
                     </div>
                 }
+                </div>
             </>
         </KinematicsContext.Provider>
     );

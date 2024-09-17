@@ -43,10 +43,13 @@ export const KinematicsContext = createContext<KinematicsContextState>({
   setPosition: (point: Point) => {},
 });
 
-interface AnimationContextState {
-  setConfig: (type: string, val: string|number) => void;
+interface ValueContextState {
+  setValue: (type: string, val: string|number) => void;
 };
 
+interface AnimationContextState extends ValueContextState {
+}
+
 export const AnimationContext = createContext<AnimationContextState>({
-  setConfig: (type: string, val: string|number) => {}
+  setValue: (type: string, val: string|number) => {}
 })

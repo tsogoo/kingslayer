@@ -28,9 +28,9 @@ export default function Home() {
         x:50, y:50
       },
       end: {
-        x:50, y:20
+        x:20, y:150
       },
-      duration: 3000
+      duration: 5000
     }
   }
 
