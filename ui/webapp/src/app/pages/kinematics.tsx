@@ -65,20 +65,20 @@ interface AnimationConf {
 }
 
 const AnimationComponent: React.FC<AnimationConf> = ({conf}) => {
-    
+    const [ animation, setAnimation ] = useState<Animation>(conf)
     const { setPosition } = useContext(KinematicsContext);
 
     const getAmination = (): Animation => {
         return {
             start: {
-                x: conf.start.x,
-                y: conf.start.y
+                x: animation.start.x,
+                y: animation.start.y
             },
             end: {
-                x: conf.end.x,
-                y: conf.end.y
+                x: animation.end.x,
+                y: animation.end.y
             },
-            duration: conf.duration
+            duration: animation.duration
         }
     };
     
@@ -98,9 +98,9 @@ const AnimationComponent: React.FC<AnimationConf> = ({conf}) => {
                 animation.end.y = val;
                 break;
         }
-        initAnimation(animation);
+        setAnimation(animation);
     };
-    const initAnimation = (animation: Animation) => {
+    const initAnimation = () => {
         const vx = (animation.end.x - animation.start.x)/animation.duration;
         const vy = (animation.end.y - animation.start.y)/animation.duration;
         let x, y = 0;
@@ -123,8 +123,11 @@ const AnimationComponent: React.FC<AnimationConf> = ({conf}) => {
         }
     }
     useEffect(() => {
-        initAnimation(conf);
+        initAnimation();
     }, []);
+    useEffect(() => {
+        initAnimation();
+    }, [animation]);
     return (
         <AnimationContext.Provider value={{setConfig}}>
             <div>Animation</div>
