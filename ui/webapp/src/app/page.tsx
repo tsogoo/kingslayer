@@ -1,5 +1,4 @@
 // import Board from './board'
-import { start } from 'repl';
 import Kinematics from './pages/kinematics';
 
 export default function Home() {
@@ -18,7 +17,7 @@ export default function Home() {
       {
         L1:100,
         L2:100,
-        position: {x:100,y:0},
+        position: {x:20,y:0},
         color: 'red',
         opposite: true
       }
@@ -28,7 +27,7 @@ export default function Home() {
         x:50, y:50
       },
       end: {
-        x:20, y:150
+        x:30, y:130
       },
       duration: 5000
     }

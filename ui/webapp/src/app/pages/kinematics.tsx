@@ -54,7 +54,7 @@ const ArmComponent: React.FC<ArmComponentConf> = ({conf}) => {
         <>
         <path d={pathStr} fill="none" stroke={arm.color} strokeWidth="2" />
         <text
-            x={arm.position.x+offset.x-20}
+            x={arm.position.x+offset.x-20 + (arm.opposite?1:-1)*40}
             y={arm.position.y+offset.y-20} fontSize="20">{angle}°</text>
         </>
     );
