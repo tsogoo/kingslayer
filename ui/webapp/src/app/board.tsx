@@ -60,11 +60,11 @@ const BoardComponent: React.FC = () => {
   return (
     <div>
       <p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
-      <div style={{float:'left', width:'600px'}} dangerouslySetInnerHTML={{ __html: svg }} />
-      <div style={{float:'left', padding:'0 0 0 1em'}}>
-        <div>last move: { move }</div>
+      <div style={{ float: 'left', width: '600px' }} dangerouslySetInnerHTML={{ __html: svg }} />
+      <div style={{ float: 'left', padding: '0 0 0 1em' }}>
+        <div>last move: {move}</div>
         <div>{history.map((h, i) => (
-          <div key={i}>{i+1}. {move == h ? <span style={{color:'white',background:'black'}}>{h}</span> : h}</div>
+          <div key={i}>{i + 1}. {move == h ? <span style={{ color: 'white', background: 'black' }}>{h}</span> : h}</div>
         ))}</div>
       </div>
     </div>

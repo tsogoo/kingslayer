@@ -1,103 +1,161 @@
 "use client";
 
-import React, { useEffect, useState, useContext } from 'react';
-import { Arm, Point, KinematicsContext, x0y0 } from '../context/kinematics';
-
-interface ArmComponentConf {
-    conf: ArmConf
-}
-
-interface ArmConf {
-    arm: Arm;
-}
-
-const ArmComponent: React.FC<ArmComponentConf> = ({conf}) => {
-    const [pathStr, setPathStr] = useState<string>('');
-    const [points, setPoints] = useState<Point[]>([])
-    const [angle, setAngle] = useState(0)
-
-    const { position, offset } = useContext(KinematicsContext);
-
-    const calculatePoints = () => {
-        const arm = conf.arm
-        //  relative to arm starting point
-        const to: Point = {
-            x:position.x-arm.position.x,
-            y:position.y-arm.position.y
-        };
-        const k: number = (to.x**2+to.y**2+arm.L1**2-arm.L2**2)/2;
-        const y: number = (k*to.y+(arm.opposite?-1:1)*to.x*Math.sqrt(arm.L1**2*(to.x**2+to.y**2)-k**2))/(to.x**2+to.y**2);
-        const x: number = (k-to.y*y)/to.x;
-        let angle: number = Math.round(Math.atan2(y,x)/Math.PI*180);
-        if (angle < 0)
-            angle+=360;
-        const points: Point[] = [
-            {
-                x:0, y:0
-            }, {
-                x:x, y:y
-            }, {
-                x:to.x, y:to.y
-            }
-        ];
-        points.forEach((point) => { point.x += arm.position.x; point.y += arm.position.y; })
-        setPoints(points);
-        setAngle(angle);
-    }
-    useEffect(() => {
-        calculatePoints();
-    }, [position, offset]);
-    useEffect(() => {
-        setPathStr(points.map((point,i)=>`${i==0?'M':'L'}${point.x+offset.x} ${point.y+offset.y}`).join(' '));
-    }, [points]);
-    return (
-        <>
-        <path d={pathStr} fill="none" stroke={conf.arm.color} strokeWidth="2" />
-        <text
-            x={conf.arm.position.x+offset.x-20}
-            y={conf.arm.position.y+offset.y-20} fontSize="20">{angle}°</text>
-        </>
-    );
-};
+import React, { useEffect, useState } from 'react';
+import { ArmParams, Point, x0y0 } from '../common/kinematics'
+import { Animate, Animation } from '../common/ui'
+import { KinematicsContext } from '../context/kinematics';
+import { ArmComponent } from '../components/arm';
+import { AnimationComponent } from '../components/animation';
+import { ScaraKinematics, ScaraKinematicsTrajectory } from '../kinematics/scara';
 
 interface KinematicsComponentConf {
-    conf: KinematicsConf;
+	conf: KinematicsConf;
 }
 
 interface KinematicsConf {
-    offset: Point;
-    arms: Arm[];
-    init: Point;
+	offset: Point;
+	arms: ArmParams[];
+	init?: Point;
+	animation: Animation;
 }
 
-const KinematicsComponent: React.FC<KinematicsComponentConf> = ({conf}) => {
-    
-    const [position, setPosition] = useState<Point>(x0y0);
-    const [offset, setOffset] = useState<Point>(conf.offset)
+const KinematicsComponent: React.FC<KinematicsComponentConf> = ({ conf }) => {
 
-    const onSvgClick = (event: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-        const svgElement = event.currentTarget;
-        const rect = svgElement.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        setPosition({x:x-conf.offset.x,y:y-conf.offset.y});
-    };
-    useEffect(() => {
-        setPosition(conf.init)
-    }, [])
-    return (
-        <KinematicsContext.Provider value={{position, offset}}>
-            <div style={{border:'1px solid'}}>
-                <svg onClick={onSvgClick} height="1200" width="1200" xmlns="http://www.w3.org/2000/svg">
-                {
-                    conf.arms.map((arm, i) => (
-                        <ArmComponent key={i} conf={{arm:arm}}/>
-                    ))
-                }
-                </svg>
-            </div>
-        </KinematicsContext.Provider>
-    );
+	const [position, setPosition] = useState<Point>(x0y0);
+	const [offset] = useState<Point>(conf.offset);
+	const [animation, setAnimation] = useState<Animation>(conf.animation);
+
+	const onSvgClick = (event: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
+		const svgElement = event.currentTarget;
+		const rect = svgElement.getBoundingClientRect();
+		const x = event.clientX - rect.left;
+		const y = event.clientY - rect.top;
+		setPosition({ x: x - conf.offset.x, y: y - conf.offset.y });
+	};
+
+	useEffect(() => {
+		if (conf.init) {
+			setPosition(conf.init);
+		}
+	}, []);
+
+	const initAnimation = () => {
+		animate(custom());
+		// animate(linear());
+	}
+
+	const linear = (): Animate[] => {
+		let iter = 1;
+		let x = animation.start.x;
+		let y = animation.start.y;
+		let delta_x = (animation.end.x - animation.start.x) / iter;
+		let delta_y = (animation.end.y - animation.start.y) / iter;
+		let animations: Animate[] = []
+		for (let i = 0; i < iter; i++) {
+			animations.push({ point: { x: x, y: y }, delay: 30 });
+			x += delta_x;
+			y += delta_y;
+		}
+		return animations;
+	}
+
+	const custom = (): Animate[] => {
+		let confs = [
+			{
+				type: 'Scara',
+				L1: 100,
+				L2: 100,
+				position: { x: 0, y: 0 },
+				color: 'green',
+			},
+			{
+				type: 'Scara',
+				L1: 100,
+				L2: 100,
+				position: { x: 20, y: 0 },
+				color: 'red',
+				opposite: true
+			}
+		];
+		let arm1 = confs[0];
+		let arm2 = confs[1];
+		let kin1 = new ScaraKinematics(arm1);
+		let kin2 = new ScaraKinematics(arm2);
+
+		let start = animation.start;
+		let end = animation.end;
+
+		let angle_s1 = kin1.getAngle(start);
+		let angle_s2 = kin2.getAngle(start);
+		let angle_e1 = kin1.getAngle(end);
+		let angle_e2 = kin2.getAngle(end);
+
+		const iter: number = 100;
+		let delta_1 = (angle_e1 - angle_s1) / iter;
+		let delta_2 = (angle_e2 - angle_s2) / iter;
+
+		let trajectory = new ScaraKinematicsTrajectory(confs);
+
+		let animations: Animate[] = []
+		let a1 = angle_s1;
+		let a2 = angle_s2;
+		let p: Point;
+
+		for (let i = 0; i < iter; i++) {
+			p = trajectory.calculate([a1, a2]);
+			animations.push({ point: { x: p.x, y: p.y }, delay: 30 });
+			a1 += delta_1;
+			a2 += delta_2;
+		}
+		return animations;
+	}
+
+	const animate = (animations: Animate[]) => {
+		const conf = animations.shift();
+		if (conf) {
+			setTimeout(function () {
+				setPosition(conf.point);
+				animate(animations);
+			}, conf.delay);
+		}
+	}
+	useEffect(() => {
+		initAnimation();
+	}, [animation]);
+	return (
+		<KinematicsContext.Provider value={{
+			position, offset,
+			setPosition,
+			animation, setAnimation
+		}}>
+			<>
+				<div style={{ float: 'left', border: '1px solid' }}>
+					<svg onClick={onSvgClick} height="600" width="1000" xmlns="http://www.w3.org/2000/svg">
+						{
+							conf.arms.map((arm, i) => (
+								<ArmComponent key={i} conf={arm} />
+							))
+						}
+						{
+							conf.animation && conf.animation.end &&
+							<>
+								<circle r="3" cx={conf.animation.start.x + offset.x} cy={conf.animation.start.y + offset.y} fill="brown" />
+								<circle r="3" cx={conf.animation.end.x + offset.x} cy={conf.animation.end.y + offset.y} fill="brown" />
+							</>
+						}
+					</svg>
+				</div>
+				<div style={{ float: 'right' }}>
+					{
+						conf.animation &&
+						<div style={{ float: 'right' }}>
+							<AnimationComponent conf={conf.animation} />
+						</div>
+					}
+				</div>
+			</>
+		</KinematicsContext.Provider>
+	);
 };
 
 export default KinematicsComponent;

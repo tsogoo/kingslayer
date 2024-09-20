@@ -1,26 +1,19 @@
 import { createContext } from "react";
+import { Point, x0y0 } from "../common/kinematics"
+import { Animation } from "../common/ui";
 
-export interface Arm {
-  L1: number;
-  L2: number;
-  position: Point;
-  color: string;
-  opposite?: boolean;
-};
-
-export interface Point {
-  x: number;
-  y: number;
-};
-
-export interface KinematicsContextState {
+interface KinematicsContextState {
   position: Point;
   offset: Point;
+  setPosition: (point: Point) => void;
+  animation: Animation;
+  setAnimation: (animation: Animation) => void;
 };
 
-export const x0y0:Point = {x:0,y:0};
-
 export const KinematicsContext = createContext<KinematicsContextState>({
-  position:x0y0,
-  offset:x0y0
+  position: x0y0,
+  offset: x0y0,
+  setPosition: (point: Point) => { },
+  animation: { start: x0y0, end: x0y0, duration: 0 },
+  setAnimation: (animation: Animation) => { }
 });
