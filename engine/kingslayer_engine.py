@@ -2,6 +2,7 @@ import chess
 import chess.pgn
 import random
 import sqlite3
+from concurrent.futures import ProcessPoolExecutor
 
 
 class ChessEvaluator:
@@ -80,7 +81,33 @@ class ChessEvaluator:
             ]
         }
 
-    def get_evaluation(self, board):
+    def get_king_safety(self, board, color):
+        king_square = board.king(color)
+        if king_square is None:  # King may not be on board (game over)
+            return 0
+
+        # Get the enemy's color
+        enemy_color = not color
+        safety_score = 0
+
+        # Define the squares around the king
+        surrounding_squares = [king_square + offset for offset in [-9, -8, -7, -1, 1, 7, 8, 9] if chess.SQUARES[0] <= king_square + offset <= chess.SQUARES[-1]]
+
+        # Check if enemy pieces attack those squares
+        for square in surrounding_squares:
+            if board.is_attacked_by(enemy_color, square):
+                safety_score -= 20  # Penalize if enemy controls squares near king
+
+        return safety_score
+
+    def get_mobility(self, board, color):
+        mobility = 0
+        for move in board.legal_moves:
+            if board.color_at(move.from_square) == color:
+                mobility += 1
+        return mobility
+
+    def get_evaluation(self, board, engine=None):
         if board.is_checkmate():
             if board.turn:
                 return -float('inf')  # Black wins
@@ -90,6 +117,13 @@ class ChessEvaluator:
             return 0  # Draw
 
         eval = 0
+        if engine:
+            info = engine.analyse(board, chess.engine.Limit(depth=1))
+            eval = info["score"].relative.score(mate_score=10000)
+            # print("info score: ", info['depth'], info["score"].relative.score(mate_score=10000))
+            if info["score"].turn == chess.BLACK:
+                eval = -eval
+            return eval
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
@@ -98,6 +132,16 @@ class ChessEvaluator:
                     eval += piece_value + self.pst[piece.piece_type][square]
                 else:
                     eval -= piece_value + self.pst[piece.piece_type][chess.square_mirror(square)]
+        
+        white_mobility = self.get_mobility(board, chess.WHITE)
+        black_mobility = self.get_mobility(board, chess.BLACK)
+        eval += (white_mobility - black_mobility) * 10  # Weight mobility by 10 (can be tuned)
+
+        # Add king safety factor
+        white_king_safety = self.get_king_safety(board, chess.WHITE)
+        black_king_safety = self.get_king_safety(board, chess.BLACK)
+        eval += (white_king_safety - black_king_safety)  # Adjust the weight if necessary
+        
         return eval
 
 
@@ -106,9 +150,13 @@ class KingslayerChessEngine:
         # Simple opening book with common openings
         self.engine_db = "chess_engine.db"
         self.evaluator = ChessEvaluator()
+        self.prune_count = 0
+        self.engine = chess.engine.SimpleEngine.popen_uci("stockfish/stockfish-ubuntu-x86-64")
+        self.engine.configure({"Skill Level": 1})
 
     def get_opening_move(self, fen):
         print("finding opening move...")
+        return None
         # get move from chess_engine
         conn = sqlite3.connect(self.engine_db)
         cursor = conn.cursor()
@@ -124,56 +172,50 @@ class KingslayerChessEngine:
             return random.choice(result)[0].strip()
         return None
 
+    def move_priority(self, board, move):
+        # Capture moves have higher priority
+        if board.is_capture(move):
+            return 10
+        # Check moves have higher priority
+        if board.gives_check(move):
+            return 5
+        # Normal moves
+        return 1
+
     # Minimax with Alpha-Beta Pruning
     def minimax(self, board, depth, alpha, beta, maximizing_player):
         if depth == 0 or board.is_game_over():
-            return self.evaluator.get_evaluation(board)
-
-        legal_moves = list(board.legal_moves)
-
+            evaluation = self.evaluator.get_evaluation(board, self.engine)
+            return evaluation
+        legal_moves = sorted(
+            board.legal_moves, key=lambda move: self.move_priority(
+                board, move))
         if maximizing_player:
             max_eval = float('-inf')
             for move in legal_moves:
                 board.push(move)
-                eval = self.minimax(board, depth - 1, alpha, beta, False)
+                eval = self.minimax(
+                    board, depth - 1, alpha, beta, False)
                 board.pop()
                 max_eval = max(max_eval, eval)
                 alpha = max(alpha, eval)
                 if beta <= alpha:
+                    self.prune_count += 1
                     break
             return max_eval
         else:
             min_eval = float('inf')
             for move in legal_moves:
                 board.push(move)
-                eval = self.minimax(board, depth - 1, alpha, beta, True)
+                eval = self.minimax(
+                    board, depth - 1, alpha, beta, True)
                 board.pop()
                 min_eval = min(min_eval, eval)
                 beta = min(beta, eval)
                 if beta <= alpha:
+                    self.prune_count += 1
                     break
             return min_eval
-
-    def get_early_middlegame_move(self, board, depth=4):
-        print("getting early middlegame move")
-        best_move = None
-        best_value = float('-inf') if board.turn == chess.WHITE else float('inf')
-        
-        for move in board.legal_moves:
-            board.push(move)
-            board_value = self.minimax(board, depth - 1, float('-inf'), float('inf'), not board.turn)
-            board.pop()
-
-            if board.turn == chess.WHITE:
-                if board_value > best_value:
-                    best_value = board_value
-                    best_move = move
-            else:
-                if board_value < best_value:
-                    best_value = board_value
-                    best_move = move
-
-        return best_move
 
     def get_random_move(self, board):
         print("getting random legal move")
@@ -192,9 +234,31 @@ class KingslayerChessEngine:
         board = chess.Board(fen)
         middle_move = self.get_early_middlegame_move(board)
         if middle_move:
-            return middle_move.uci()
+            return middle_move
         # Step 3: If no opening or early middlegame move, fall back to random (for now)
         return self.get_random_move(board)
+
+    def get_early_middlegame_move(self, board, depth=2):
+        print("getting early middlegame move", chess.WHITE)
+        best_move = None
+        best_value = float('-inf') if board.turn == chess.WHITE else float('inf')
+        alpha = float('-inf')
+        beta = float('inf')
+
+        for move in board.legal_moves:
+            board.push(move)
+            board_value = self.minimax(board, depth, alpha, beta, board.turn)
+            board.pop()
+
+            if board.turn == chess.WHITE and board_value > best_value:
+                best_value = board_value
+                best_move = move
+            elif board.turn == chess.BLACK and board_value < best_value:
+                best_value = board_value
+                best_move = move
+
+        print(f"Pruning occurred {self.prune_count} times")
+        return best_move.uci() if best_move else None
 
     def make_move(self, fen, uci_move):
         board = chess.Board(fen)
