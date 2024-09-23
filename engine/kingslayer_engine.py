@@ -2,7 +2,78 @@ import chess
 import chess.pgn
 import random
 import sqlite3
-from concurrent.futures import ProcessPoolExecutor
+import concurrent.futures
+import multiprocessing
+
+stockengine = None
+
+def handler_result(future):
+    print("handler result")
+    print(future.result())
+
+
+def initialize_stockengine():
+    global stockengine
+    if stockengine is None:         
+        # print("initializing stockengine")
+        stockengine = chess.engine.SimpleEngine.popen_uci("stockfish/stockfish-ubuntu-x86-64")
+        stockengine.configure({"Skill Level": 1})
+        # print("initialized stockengine")
+
+
+def move_priority(board, move):
+    # Capture moves have higher priority
+    if board.is_capture(move):
+        return 10
+    # Check moves have higher priority
+    if board.gives_check(move):
+        return 5
+    # Normal moves
+    return 1
+
+
+def worker(fen, move, depth, evaluator):
+    global stockengine
+    if stockengine is None:
+        initialize_stockengine()
+    evaluator.set_engine(stockengine)
+    board = chess.Board(fen)
+    board.push(move)
+    fen = board.fen()
+    eval = minimax(fen, depth - 1, float('-inf'), float('inf'), False, evaluator)
+    return move, eval
+
+
+def minimax(fen, depth, alpha, beta, maximizing_player, evaluator):
+    board = chess.Board(fen)
+    if depth == 0 or board.is_game_over():
+        evaluation = evaluator.get_evaluation(board)
+        return evaluation
+    legal_moves = sorted(
+        board.legal_moves, key=lambda move: move_priority(board, move))
+    if maximizing_player:
+        max_eval = float('-inf')
+        for move in legal_moves:
+            board.push(move)
+            
+            eval = minimax(board.fen(), depth - 1, alpha, beta, False, evaluator)
+            board.pop()
+            max_eval = max(max_eval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+        return max_eval
+    else:
+        min_eval = float('inf')
+        for move in legal_moves:
+            board.push(move)
+            eval = minimax(board.fen(), depth - 1, alpha, beta, True, evaluator)
+            board.pop()
+            min_eval = min(min_eval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return min_eval
 
 
 class ChessEvaluator:
@@ -107,7 +178,10 @@ class ChessEvaluator:
                 mobility += 1
         return mobility
 
-    def get_evaluation(self, board, engine=None):
+    def set_engine(self, engine):
+        self.engine = engine
+
+    def get_evaluation(self, board):
         if board.is_checkmate():
             if board.turn:
                 return -float('inf')  # Black wins
@@ -117,8 +191,8 @@ class ChessEvaluator:
             return 0  # Draw
 
         eval = 0
-        if engine:
-            info = engine.analyse(board, chess.engine.Limit(depth=1))
+        if self.engine:
+            info = self.engine.analyse(board, chess.engine.Limit(depth=1))
             eval = info["score"].relative.score(mate_score=10000)
             # print("info score: ", info['depth'], info["score"].relative.score(mate_score=10000))
             if info["score"].turn == chess.BLACK:
@@ -151,8 +225,6 @@ class KingslayerChessEngine:
         self.engine_db = "chess_engine.db"
         self.evaluator = ChessEvaluator()
         self.prune_count = 0
-        self.engine = chess.engine.SimpleEngine.popen_uci("stockfish/stockfish-ubuntu-x86-64")
-        self.engine.configure({"Skill Level": 1})
 
     def get_opening_move(self, fen):
         print("finding opening move...")
@@ -182,38 +254,22 @@ class KingslayerChessEngine:
         # Normal moves
         return 1
 
-    def minimax_parallel(self, board, depth, alpha, beta, maximizing_player):
-        if depth == 0 or board.is_game_over():
-            return self.evaluator.get_evaluation(board)
-        
-        legal_moves = list(board.legal_moves)
-        best_value = float('-inf') if maximizing_player else float('inf')
+    def parallel_minimax(self, board, depth):
+        legal_moves = sorted(
+            board.legal_moves, key=lambda move: move_priority(board, move))
+        move_evals = {}
 
-        # Use ProcessPoolExecutor for parallelization
-        aa = self
-        with ProcessPoolExecutor() as executor:
-            # Submit each move to be evaluated in parallel
-            futures = []
-            for move in legal_moves:
-                board.push(move)
-                futures.append(executor.submit(
-                    aa.minimax, board.copy(), depth - 1, alpha, beta, not maximizing_player))
-                board.pop()
-
-            # Collect the results
-            for future in futures:
-                eval = future.result()
-                if maximizing_player:
-                    best_value = max(best_value, eval)
-                    alpha = max(alpha, eval)
-                else:
-                    best_value = min(best_value, eval)
-                    beta = min(beta, eval)
-                if beta <= alpha:
-                    self.prune_count += 1
-                    break
-        
-        return best_value
+        # Use ProcessPoolExecutor to parallelize the first depth's move evaluations with 4 threads
+        evaluator = self.evaluator
+        fen = board.fen()
+        with multiprocessing.Pool(initializer=initialize_stockengine) as pool:
+            results = [pool.apply_async(
+                worker, (fen, move, depth, evaluator)) for move in legal_moves]
+            for result in results:
+                move, eval = result.get()
+                move_evals[move] = eval
+        best_move = max(move_evals, key=move_evals.get)
+        return best_move, move_evals[best_move]
 
     # Minimax with Alpha-Beta Pruning
     def minimax(self, board, depth, alpha, beta, maximizing_player):
@@ -271,8 +327,11 @@ class KingslayerChessEngine:
         # Step 3: If no opening or early middlegame move, fall back to random (for now)
         return self.get_random_move(board)
 
-    def get_early_middlegame_move(self, board, depth=1):
+    def get_early_middlegame_move(self, board, depth=3):
         print("getting early middlegame move", chess.WHITE)
+        best_move, best_eval = self.parallel_minimax(board, depth=depth)
+        print("ended early middlegame move")
+        return best_move.uci() if best_move else None
         best_move = None
         best_value = float('-inf') if board.turn == chess.WHITE else float('inf')
         alpha = float('-inf')
