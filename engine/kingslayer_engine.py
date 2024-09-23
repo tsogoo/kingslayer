@@ -182,6 +182,39 @@ class KingslayerChessEngine:
         # Normal moves
         return 1
 
+    def minimax_parallel(self, board, depth, alpha, beta, maximizing_player):
+        if depth == 0 or board.is_game_over():
+            return self.evaluator.get_evaluation(board)
+        
+        legal_moves = list(board.legal_moves)
+        best_value = float('-inf') if maximizing_player else float('inf')
+
+        # Use ProcessPoolExecutor for parallelization
+        aa = self
+        with ProcessPoolExecutor() as executor:
+            # Submit each move to be evaluated in parallel
+            futures = []
+            for move in legal_moves:
+                board.push(move)
+                futures.append(executor.submit(
+                    aa.minimax, board.copy(), depth - 1, alpha, beta, not maximizing_player))
+                board.pop()
+
+            # Collect the results
+            for future in futures:
+                eval = future.result()
+                if maximizing_player:
+                    best_value = max(best_value, eval)
+                    alpha = max(alpha, eval)
+                else:
+                    best_value = min(best_value, eval)
+                    beta = min(beta, eval)
+                if beta <= alpha:
+                    self.prune_count += 1
+                    break
+        
+        return best_value
+
     # Minimax with Alpha-Beta Pruning
     def minimax(self, board, depth, alpha, beta, maximizing_player):
         if depth == 0 or board.is_game_over():
@@ -238,7 +271,7 @@ class KingslayerChessEngine:
         # Step 3: If no opening or early middlegame move, fall back to random (for now)
         return self.get_random_move(board)
 
-    def get_early_middlegame_move(self, board, depth=2):
+    def get_early_middlegame_move(self, board, depth=1):
         print("getting early middlegame move", chess.WHITE)
         best_move = None
         best_value = float('-inf') if board.turn == chess.WHITE else float('inf')
@@ -247,7 +280,9 @@ class KingslayerChessEngine:
 
         for move in board.legal_moves:
             board.push(move)
-            board_value = self.minimax(board, depth, alpha, beta, board.turn)
+            # board_value = self.minimax(board, depth, alpha, beta, board.turn)
+            board_value = self.minimax(
+                board, depth, alpha, beta, board.turn)
             board.pop()
 
             if board.turn == chess.WHITE and board_value > best_value:
