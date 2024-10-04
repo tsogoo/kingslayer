@@ -170,3 +170,13 @@ camera_images/
 *.jpg
 *.png
 *.mp4
+*.stl
+*.sqlite3
+*.gcode
+*.pt
+*.cache
+*.hdr
+*.db
+*.pb
+lc0/
+*.pth

@@ -1,1 +1,1 @@
-{"status": "stopped"}
+{"status": "started", "light_contour_number": 80, "is_white": false, "image_url": "http://192.168.1.48:8080", "statuses": ["calibrate_board", "init_camera", "starting", "started"]}

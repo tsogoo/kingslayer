@@ -150,13 +150,13 @@ class BlenderChess:
         self.MAX_X = 2
         self.MIN_Y = -1
         self.MAX_Y = 2
-        self.RENDER_WIDTH = 840
-        self.RENDER_HEIGHT = 840
-        self.CROP_WIDTH = 840
-        self.CROP_HEIGHT = 840
-        self.IMG_WIDTH = 840
-        self.IMG_HEIGHT = 840
-        self.TRAIN_ITER = 6000
+        self.RENDER_WIDTH = 640
+        self.RENDER_HEIGHT = 640
+        self.CROP_WIDTH = 640
+        self.CROP_HEIGHT = 640
+        self.IMG_WIDTH = 640
+        self.IMG_HEIGHT = 640
+        self.TRAIN_ITER = 5000
         self.VAL_ITER = 500
         self.TEST_ITER = 20
 
@@ -237,7 +237,7 @@ class BlenderChess:
         duplicated_obj.location.x = x_pos
         duplicated_obj.location.y = y_pos
         bpy.ops.transform.resize(
-            value=(1, 1, random.uniform(1, 2.5)),
+            value=(1, 1, random.uniform(1, 1.8)),
             orient_type="GLOBAL",
             orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
             orient_matrix_type="GLOBAL",
@@ -411,7 +411,7 @@ class BlenderChess:
         pivot_y = 1 if pivot_y + height / 2 > 1 else round(pivot_y + height / 2, 4)
         if self.with_pivot:
             return f"{model_index} {x} {y} {width} {height} {pivot_x} {pivot_y}"
-        return f"{model_index} {x+width/2} {y+height/2} {width} {height}"
+        return f"{model_index} {x} {y} {width} {height}"
 
     def save_label(self, path, data):
         with open(path, "w") as f:
@@ -453,12 +453,12 @@ class BlenderChess:
         # bpy.data.objects["Camera"].rotation_euler.y = random.uniform(0, 0.5)
         bpy.data.objects["Camera"].rotation_euler.z = random.uniform(1.3, 1.8)
         bpy.data.objects["Camera"].data.dof.use_dof = True
-        bpy.data.objects["Camera"].data.dof.focus_distance = random.uniform(1.5, 2.2)
+        bpy.data.objects["Camera"].data.dof.focus_distance = random.uniform(1.7, 2)
         # bpy.data.objects["Camera"].data.dof.aperture_fstop = random.uniform(2.2, 4)
 
     def generate_data(self, mode, iter, start_index=0):
         # make dir if not exists named mode
-        data_dir = os.path.join(self.blender_dir, "..", "cm_datasets")
+        data_dir = os.path.join(self.blender_dir, "..", "datasets_640")
         if not os.path.exists(os.path.join(data_dir, mode)):
             os.makedirs(os.path.join(data_dir, mode))
             os.makedirs(os.path.join(data_dir, mode, "images"))
@@ -475,10 +475,10 @@ class BlenderChess:
 
 
 blender_chess = BlenderChess()
-blender_chess.set_with_pivot(True)
-# blender_chess.generate_data("test", blender_chess.TEST_ITER, 0)
-# blender_chess.generate_data("val", blender_chess.VAL_ITER, 330)
+blender_chess.set_with_pivot(False)
+blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 872)
+blender_chess.generate_data("val", blender_chess.VAL_ITER, 98)
 if blender_chess.with_pivot:
-    blender_chess.generate_data("torch_train", blender_chess.TRAIN_ITER, 0)
-
+    # blender_chess.generate_data("torch_train", blender_chess.TRAIN_ITER, 0)
+    blender_chess.generate_data("torch_val", blender_chess.VAL_ITER, 10)
 # blender_chess.generate_data("train", blender_chess.TRAIN_ITER, 13042)
