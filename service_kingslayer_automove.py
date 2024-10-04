@@ -41,7 +41,15 @@ chess_model_weight = args.chess_model_weight
 
 chess = Kingslayer(board_weight, chess_model_weight)
 # best_move = chess.process_from_image(image)
-
+# print("moving")
+# chess.robot.move(
+#     chess.chess_engine_helper,
+#     chess,
+#     'e2e4',
+#     True,
+# )
+# chess.chess_engine_helper.destroy()
+# exit()
 while True:
     with open("status.json", "r") as f:
         try:
@@ -70,7 +78,7 @@ while True:
                             with open("status.json", "w") as f:
                                 json.dump(status, f)
                         best_move = chess.trigger(image)
-                        time.sleep(.3)  # delay 1 second
+                        # time.sleep(.1)  # delay 1 second
                 except Exception as e:
                     print("Error:", e)
 

@@ -6,7 +6,7 @@ import numpy as np
 import math
 from ultralytics import YOLO
 from engine.helper import ChessEngineHelper
-from robot_arm.robot import Robot
+from robot_arm.parallel_robot import Robot
 from common.config import get_config
 
 from lib_contour import (

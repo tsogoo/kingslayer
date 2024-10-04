@@ -163,7 +163,7 @@ class KingslayerChessEngine:
         # Step 3: If no opening or early middlegame move, fall back to random (for now)
         return self.get_random_move(board)
 
-    def get_early_middlegame_move(self, board, depth=2):
+    def get_early_middlegame_move(self, board, depth=1):
         print("getting early middlegame move", chess.WHITE)
         # best_move, best_eval = self.parallel_minimax(board, depth=depth)
         best_move, best_eval = self.non_parallel_minimax(board, depth=depth)
