@@ -6,16 +6,11 @@ import numpy as np
 import math
 from ultralytics import YOLO
 from engine.helper import ChessEngineHelper
-from robot_arm.parallel_robot import Robot
+from robot_arm.cartesian_robot import Robot
 from common.config import get_config
 
 from lib_contour import (
-    get_enhanced_image,
-    get_contoured_image,
     get_gray_image,
-    get_sharpened_image,
-    get_blurry_image,
-    get_noisy_image,
 )
 
 
@@ -86,7 +81,7 @@ class Kingslayer:
         self.pts_square = None
         self.pts_perspective = None
         self.pts = None
-        self.margin = 186
+        self.margin = 126
         self.CONFIDENCE_THRESHOLD = 0.7
         self.CROP_SIZE = 640
         self.detected_board_data = None
@@ -135,17 +130,17 @@ class Kingslayer:
 
         # Apply the contrast stretching
         autocontrast = (image - min_val) * (255 / (max_val - min_val))
-
         # Convert to uint8
         return np.uint8(autocontrast)
 
     def converted_robot_point(self, xy):
-        w1 = self.robot.board_square_size * 8 + 2 * self.robot.board_margin_size
-        w2 = self.robot.board_square_size * 8
+        board_margin_size = self.robot.board_margin_size
+        w1 = self.robot.board_square_size * 8 + 2 * board_margin_size
+        w2 = self.robot.board_square_size * 8 + 2 * board_margin_size
         scale = 1
         x = int(xy[0] * w1 / self.CROP_SIZE - self.robot.board_margin_size)
         y = int(xy[1] * scale * w1 / self.CROP_SIZE - self.robot.board_margin_size)
-        return (x, y)
+        return (int(x), int(y))
 
     def detect_models(self, image):
         frame_path = image
@@ -238,11 +233,12 @@ class Kingslayer:
 
     def print_detected_board(self):
         # set blank image
+        board_square_size = self.robot.board_square_size
+        # board_square_size = 80
         img = np.zeros(
-            (self.robot.board_square_size * 8, 8 * self.robot.board_square_size, 3),
+            (int(board_square_size * 8), int(8 * board_square_size), 3),
             np.uint8,
         )
-
         # draw board
         for i in range(8):
             for j in range(8):
@@ -250,12 +246,12 @@ class Kingslayer:
                     cv2.rectangle(
                         img,
                         (
-                            j * self.robot.board_square_size,
-                            i * self.robot.board_square_size,
+                            j * board_square_size,
+                            i * board_square_size,
                         ),
                         (
-                            (j + 1) * self.robot.board_square_size,
-                            (i + 1) * self.robot.board_square_size,
+                            (j + 1) * board_square_size,
+                            (i + 1) * board_square_size,
                         ),
                         (255, 255, 255),
                         -1,
@@ -264,12 +260,12 @@ class Kingslayer:
                     cv2.rectangle(
                         img,
                         (
-                            j * self.robot.board_square_size,
-                            i * self.robot.board_square_size,
+                            j * board_square_size,
+                            i * board_square_size,
                         ),
                         (
-                            (j + 1) * self.robot.board_square_size,
-                            (i + 1) * self.robot.board_square_size,
+                            (j + 1) * board_square_size,
+                            (i + 1) * board_square_size,
                         ),
                         (0, 0, 0),
                         -1,
@@ -279,7 +275,7 @@ class Kingslayer:
         for model in self.models:
             cv2.circle(
                 img,
-                (model[1][0], model[1][1]),
+                (int(model[1][0]), int(model[1][1])),
                 3,
                 (255, 0, 255),
                 -1,
@@ -473,12 +469,14 @@ class Kingslayer:
                 2,
             )
             cv2.imwrite("board_result.jpg", img)
-            self.robot.move(
+            response = self.robot.move(
                 self.chess_engine_helper,
                 self,
                 best_move,
                 self.chess_engine_helper.board.turn if self.is_white else not self.chess_engine_helper.board.turn,
             )
+            # if not response:
+            #     self.previous_fen = self.buffered_previous_fen
             print(self.robot.commands)
             return best_move
         cv2.imwrite("board_result.jpg", img)
@@ -645,6 +643,7 @@ class Kingslayer:
             )
             print("===========Best Fen", best_fen)
             print(best_move)
+            # self.buffered_previous_fen = self.previous_fen
             self.previous_fen = best_fen.split(" ")[0]
             self.fen_kq = self.produce_kq(self.previous_fen, who, self.fen_kq)
             print("Previous fen saved", self.previous_fen)

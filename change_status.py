@@ -7,7 +7,7 @@ parser = argparse.ArgumentParser(
     description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
 )
 parser.add_argument(
-    "--webcam_ip",
+    "--webcam_url",
     required=False,
     default="192.168.1.150:8080",
     help="Image file or directory to predict",
@@ -31,11 +31,11 @@ parser.add_argument(
     help="Is White",
 )
 args = parser.parse_args()
-webcam_ip = args.webcam_ip
-print(f"webcam_ip: {webcam_ip}")
+webcam_url = args.webcam_url
+print(f"webcam_url: {webcam_url}")
 print(f"status: {args.status}")
 
-image_url = f"http://{webcam_ip}/photoaf.jpg"
+image_url = f"http://{webcam_url}"
 img_data = requests.get(image_url).content
 with open("frame.jpg", "wb") as handler:
     handler.write(img_data)

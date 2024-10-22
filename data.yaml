@@ -1,14 +1,14 @@
-path: /mnt/d/work/kingslayer_new/
-train: ./cm_datasets/train
-val: ./cm_datasets/val
-test: ./cm_datasets/test
+path: /mnt/d/work/kingslayer/
+train: ./datasets_640/train
+val: ./datasets_640/val
+test: ./datasets_640/test
 nc: 12 # Number of classes (["Pawn", "Bishop", "King", "Queen", "Rook", "Knight"])x black or white
 names:  ["Pw0", "Bs0", "Kg0", "Qn0", "Rk0", "Kt0", "Pw1", "Bs1", "Kg1", "Qn1", "Rk1", "Kt1"]
 
 batch_size: 16
 epochs: 100
 # grayscale_conversion: True
-# data_augmentation: False
+data_augmentation: False
 img_size: 640
 augmentations:
   hsv_h: 0  # image HSV-Hue augmentation (fraction)
@@ -18,11 +18,11 @@ augmentations:
   translate: 0.2  # image translation (+/- fraction)
   scale: 0.5    # image scale (+/- gain)
   shear: 0.09    # image shear (+/- degrees)
-  perspective: 1  # image perspective (+/- fraction), range 0-0.001
+  perspective: 0  # image perspective (+/- fraction), range 0-0.001
   flipud: 0   # image flip up-down (probability)
   fliplr: 0.5   # image flip left-right (probability)
-  mosaic: 1.0   # image mosaic (probability)
-  mixup: 0.0    # image mixup (probability)
-  brightness: 0  # brightness augmentation
-  contrast: 0    # contrast augmentation
-  noise: 0.5       # noise augmentation (you might need to customize this if not available)
+  mosaic: 0.2   # image mosaic (probability)
+  mixup: 0.2    # image mixup (probability)
+  brightness: 0.1  # brightness augmentation
+  contrast: 0.1    # contrast augmentation
+  noise: 0.2      # noise augmentation (you might need to customize this if not available)

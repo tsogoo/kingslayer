@@ -6,21 +6,21 @@ robot:
     short_distance: 40
     short_distance_ratio: '30:40:30' #[100]
   z_lift:
-    up_z: 7 # 1.48
-    down_z: 20 # 21.52
+    up_z: 4.5 # 1.48
+    down_z: 15.52 # 21.52
   gripper:
     home_x: 50.5
     home_y: 70
-    take_angle: 144
-    release_angle: 115
+    take_angle: 147
+    release_angle: 124
     step: 5
     delay: 200 #ms
     check_phase: true
   speed:
-    xy: 8000
-    xy_slow: 7000
-    z: 8000
-    z_slow: 7000
+    xy: 2000
+    xy_slow: 1000
+    z: 3000
+    z_slow: 3000
   timer:
     enabled: false
     x: -105
@@ -28,13 +28,13 @@ robot:
     z: -80
     y_b: 220
   board:
-    x: 204 # 
-    y: 130
+    x: 10 # 
+    y: -10
     z: -118
     safe_z: 20
     figure_z: -54
-    square_size: 41
-    margin_size: 20
+    square_size: 30
+    margin_size: 10
   out:
     # x: 400
     x: -115
@@ -52,7 +52,7 @@ robot:
     pwm: 0.1 #0<pwm<1
     beep_times: 3
   urls:
-    klipper: http://192.168.1.48:8000
+    klipper: http://192.168.1.48:8080/gcode
 
 # control robot via mqtt
 broker:

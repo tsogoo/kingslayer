@@ -18,7 +18,7 @@ class RobotTask(Enum):
     Buzzer = "Buzzer"
 
 
-def send_request_with_retries(url, data, retries=2, timeout=20):
+def send_request_with_retries(url, data, retries=2, timeout=60):
     attempt = 0
     while attempt < retries:
         try:
@@ -27,7 +27,7 @@ def send_request_with_retries(url, data, retries=2, timeout=20):
             response.raise_for_status()  # Raise an error for bad responses (4xx, 5xx)
             return response
         except requests.exceptions.Timeout:
-            print(f"Timeout occurred on attempt {attempt + 1}. Retrying...")
+            print(f"Timeout {timeout} occurred on attempt {attempt + 1}. Retrying...")
         except requests.exceptions.RequestException as e:
             print(f"Request failed: {e}. Retrying...")
         # Wait before retrying
@@ -56,88 +56,7 @@ class Robot:
         self.commands = []
 
     def calibrate_board(self):
-        self.commands = [
-            "G28",
-            "SET_GCODE_OFFSET X={} Y={}".format(
-                # get_config(self.config, "board:x"), get_config(self.config, "board:y")
-                0,
-                0,
-            ),
-            "G1 X{} Y{} Z{} F{}".format(
-                (
-                    int(get_config(self.config, "board:x"))
-                    - int(get_config(self.config, "board:margin_size"))
-                ),
-                (
-                    int(get_config(self.config, "board:y"))
-                    - int(get_config(self.config, "board:margin_size"))
-                ),
-                int(get_config(self.config, "board:z")) + 20,
-                int(self.xy_speed()) - 4000,
-            ),
-            "G1 X{} Y{} Z{} F{}".format(
-                (
-                    int(get_config(self.config, "board:x"))
-                    + int(get_config(self.config, "board:margin_size"))
-                    + 8 * int(get_config(self.config, "board:square_size"))
-                ),
-                (
-                    int(get_config(self.config, "board:y"))
-                    - int(get_config(self.config, "board:margin_size"))
-                ),
-                int(get_config(self.config, "board:z")) + 20,
-                int(self.xy_speed()) - 4000,
-            ),
-            "G1 X{} Y{} Z{} F{}".format(
-                (
-                    int(get_config(self.config, "board:x"))
-                    + int(get_config(self.config, "board:margin_size"))
-                    + 8 * int(get_config(self.config, "board:square_size"))
-                ),
-                (
-                    int(get_config(self.config, "board:y"))
-                    + int(get_config(self.config, "board:margin_size"))
-                    + 8 * int(get_config(self.config, "board:square_size"))
-                ),
-                int(get_config(self.config, "board:z")) + 20,
-                int(self.xy_speed()) - 4000,
-            ),
-            "G1 X{} Y{} Z{} F{}".format(
-                (
-                    int(get_config(self.config, "board:x"))
-                    - int(get_config(self.config, "board:margin_size"))
-                ),
-                (
-                    int(get_config(self.config, "board:y"))
-                    + int(get_config(self.config, "board:margin_size"))
-                    + 8 * int(get_config(self.config, "board:square_size"))
-                ),
-                int(get_config(self.config, "board:z")) + 20,
-                int(self.xy_speed()) - 4000,
-            ),
-            "G1 X{} Y{} Z{} F{}".format(
-                (
-                    int(get_config(self.config, "board:x"))
-                    - int(get_config(self.config, "board:margin_size"))
-                ),
-                (
-                    int(get_config(self.config, "board:y"))
-                    - int(get_config(self.config, "board:margin_size"))
-                ),
-                int(get_config(self.config, "board:z")) + 20,
-                int(self.xy_speed()) - 4000,
-            ),
-            "G1 z{}".format(get_config(self.config, "board:safe_z")),
-            "G1 X{}".format(0),
-            "G28",
-            "M84",
-        ]
-        print(get_config(self.config, "urls:klipper"))
-        print(self.commands)
-
-        send_request_with_retries(
-            get_config(self.config, "urls:klipper"), {"commands": self.commands})
-        print("-======================responded")
+        pass
 
     def move_handle(self, moves, turn):
         print("move_handling")
@@ -194,16 +113,14 @@ class Robot:
         # go to safe z to travel if needed
 
         gcode.extend(self.move_z_gode_array(down=False))
-
+        print("move_code", move.x, move.y)
         # optimize move
         gcode.extend(self.optimize_move_xy(move, last_move))
 
         if move.task == RobotTask.Out:
             # no need to be slowly, drop it from a height
             gcode.extend([
-                "G1 Z{} F{}".format(
-                    get_config(self.config, "board:out_z"), self.z_speed()
-                ),
+                
                 "G4 P700"]
             )
         else:
@@ -211,56 +128,13 @@ class Robot:
             gcode.extend(self.move_z_gode_array(down=True))
 
         gcode.extend(self.gripper_code(is_take=is_take))
-        if move.task == RobotTask.Place:
-            # slow down
-            gcode.append(
-                "G1 Z{} F{}".format(
-                    get_config(self.config, "board:figure_z"),
-                    self.z_speed(is_slow=True),
-                )
-            )
+        
         gcode.extend(self.move_z_gode_array(down=False))
 
         return gcode
 
     def perform_code_if_won(self):
-        gcode = self.gripper_code(is_take=False, should_delay=False, is_check=True)
-        gcode.extend(
-            [
-                "G4 P50",
-                "G1 X{} Y{} Z{} ".format(
-                    get_config(self.config, "tissue:x"),
-                    get_config(self.config, "tissue:y"),
-                    get_config(self.config, "board:safe_z"),
-                ),
-                "G1 Z{}".format(
-                    get_config(self.config, "tissue:z"),
-                ),
-            ]
-        )
-        gcode.extend(self.gripper_code(is_take=True, should_delay=False, is_check=True))
-        gcode.extend(
-            [
-                "G1 Z{}".format(
-                    get_config(self.config, "board:safe_z") + 100,
-                ),
-                "G4 P50",
-                "G1 X{} Y{} Z{} F{}".format(
-                    (0 - get_config(self.config, "board:x")),
-                    get_config(self.config, "board:y") + 50,
-                    get_config(self.config, "board:safe_z") + 240,
-                    get_config(self.config, "speed:xy"),
-                ),
-                "G4 P4450",
-            ]
-        )
-
-        gcode.extend(
-            self.gripper_code(is_take=False, should_delay=False, is_check=True)
-        )
-        gcode.append("G4 P1450")
-        gcode.extend(self.gripper_code(is_take=True, should_delay=False, is_check=True))
-        return gcode
+        pass
 
     def after_move_code(self, last_move: RobotMove = None):
         # home and disable motors
@@ -270,10 +144,11 @@ class Robot:
         gcode.extend(
             [
                 "SET_GCODE_OFFSET X=0 Y=0",
-                "G1X{}Y{}".format(
+                "G1X{}Y{}F{}".format(
                     get_config(self.config, "gripper:home_x"),
-                    get_config(self.config, "gripper:home_y")),
-                "G28",
+                    get_config(self.config, "gripper:home_y"),
+                    self.xy_speed()),
+                "G1X0Y0",
                 "M84",
             ]
         )
@@ -284,7 +159,7 @@ class Robot:
         gcode = []
         gcode.extend(
             [
-                "G28",
+                "G28 X Y",
                 "SET_GCODE_OFFSET X={} Y={}".format(
                     get_config(self.config, "board:x"),
                     get_config(self.config, "board:y"),
@@ -308,25 +183,7 @@ class Robot:
         return gcode
 
     def timer_code(self, turn: bool, move: RobotMove, last_move: RobotMove):
-        # push down timer
-        gcode = []
-        gcode.append(
-            "G1 Z{} F{}".format(
-                get_config(self.config, "board:safe_z"),
-                get_config(self.config, "speed:z_slow"),
-            )
-        )
-        gcode.extend(self.gripper_code(is_take=True, should_delay=False))
-        gcode.extend(self.optimize_move_xy(move, last_move))
-        gcode.extend(
-            [
-                "G1 Z{} F{}".format(get_config(self.config, "timer:z"), self.z_speed()),
-                "G1 Z{} F{}".format(
-                    get_config(self.config, "board:safe_z"), self.z_speed()
-                ),
-            ]
-        )
-        return gcode
+        pass
 
     def gripper_code(
         self,
@@ -473,15 +330,15 @@ class Robot:
             for i, r in enumerate(ratio):
                 ratio_t += float(r)
                 gcode.append(
-                    "G1 X{} Y{} F{}".format(
+                    "G1X{}Y{}F{}".format(
                         _x + delta_x * ratio_t / 100,
                         _y + delta_y * ratio_t / 100,
                         self.xy_speed(is_slow=i % 2 == 0),
                     )
                 )
         else:
-            gcode.append("G1 X{} Y{} F{}".format(
-                (-1)*move.x, move.y, self.xy_speed()))
+            gcode.append("G1X{}Y{}F{}".format(
+                move.x, move.y, self.xy_speed()))
         return gcode
 
     def task_handle(self, task: RobotTask):
@@ -683,7 +540,7 @@ class KlipperApiHandler:
 
 # sample
 # r = RobotApiHandler()
-# r.command(RobotApiCommand.Command, "G28")
+# r.command(RobotApiCommand.Command, "G28 X Y")
 # r.command(RobotApiCommand.Command, "G1 Z20 F5000")
 # r.command(RobotApiCommand.Command, "G1 Y360 F5000")
 # r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=80")
@@ -695,5 +552,5 @@ class KlipperApiHandler:
 # r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=80")
 # r.command(RobotApiCommand.Command, "G1 Z20 F5000")
 # r.command(RobotApiCommand.Command, "SET_SERVO servo=servo_arm angle=125")
-# r.command(RobotApiCommand.Command, "G28")
+# r.command(RobotApiCommand.Command, "G28 X Y")
 # r.command(RobotApiCommand.Command, "M84")

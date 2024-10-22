@@ -30,7 +30,7 @@ parser.add_argument(
 parser.add_argument(
     "--chess_model_weight",
     required=False,
-    default="best_cm.pt",
+    default="best_yolo11s.pt",
     help="Weight of the training model",
 )
 args = parser.parse_args()
