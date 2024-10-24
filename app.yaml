@@ -6,7 +6,7 @@ robot:
     short_distance: 40
     short_distance_ratio: '30:40:30' #[100]
   z_lift:
-    up_z: 4.5 # 1.48
+    up_z: 3.5 # 1.48
     down_z: 15.52 # 21.52
   gripper:
     home_x: 50.5
@@ -28,8 +28,8 @@ robot:
     z: -80
     y_b: 220
   board:
-    x: 10 # 
-    y: -10
+    x: 2 # 
+    y: 28
     z: -118
     safe_z: 20
     figure_z: -54
@@ -37,12 +37,11 @@ robot:
     margin_size: 10
   out:
     # x: 400
-    x: -115
-    y: 180
-    z: -60
-  in:
-    x: -115
+    x: 40
     y: 270
+  in:
+    x: 100
+    y: 290
   tissue:
     x: -115
     y: 30

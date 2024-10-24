@@ -81,7 +81,7 @@ class Kingslayer:
         self.pts_square = None
         self.pts_perspective = None
         self.pts = None
-        self.margin = 126
+        self.margin = 150
         self.CONFIDENCE_THRESHOLD = 0.7
         self.CROP_SIZE = 640
         self.detected_board_data = None

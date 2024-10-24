@@ -48,14 +48,14 @@ def initialize_table():
         '''
     )
     # empty the table
-    cursor.execute("DELETE FROM training_data")
+    # cursor.execute("TRUNCATE TABLE training_data")
     conn.commit()
     conn.close()
 
 
 def main():
     initialize_table()
-    fens = get_fens(0, 10000)
+    fens = get_fens(190000, 220000)
     add_fens_with_score(fens)
 
 
